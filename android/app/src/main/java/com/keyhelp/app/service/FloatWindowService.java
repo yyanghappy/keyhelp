@@ -11,15 +11,13 @@ import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.IBinder;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.ImageView;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.util.Log;
-import android.content.Context;
 
 public class FloatWindowService extends Service {
     private static final String TAG = "FloatWindowService";
@@ -29,26 +27,16 @@ public class FloatWindowService extends Service {
     public static final String ACTION_SHOW = "com.keyhelp.app.action.SHOW_FLOAT";
 
     private WindowManager windowManager;
-    private View floatView;
-    private ImageView closeBtn;
-    private ImageView scriptListBtn;
-    private ImageView stopBtn;
+    private LinearLayout floatLayout;
+    private Button closeBtn;
+    private Button scriptListBtn;
+    private Button stopBtn;
     private TextView statusText;
-    private TextView scriptNameText;
-
-    private static final int ID_CLOSE_BTN = 1;
-    private static final int ID_SCRIPT_LIST_BTN = 2;
-    private static final int ID_STOP_BTN = 3;
-    private static final int ID_STATUS_TEXT = 4;
-    private static final int ID_SCRIPT_NAME_TEXT = 5;
 
     private int originalX = 0;
     private int originalY = 0;
-    private int originalXRaw = 0;
-    private int originalYRaw = 0;
 
     private static boolean isRunning = false;
-    private static String currentScript = "";
     private static OnFloatWindowListener listener;
 
     public interface OnFloatWindowListener {
@@ -61,6 +49,10 @@ public class FloatWindowService extends Service {
         listener = l;
     }
 
+    public static boolean isRunning() {
+        return isRunning;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -71,221 +63,6 @@ public class FloatWindowService extends Service {
 
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createFloatWindow();
-    }
-
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "浮窗服务",
-                    NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("保持浮窗服务运行");
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
-
-    private Notification createNotification() {
-        Intent notificationIntent = new Intent(this, FloatWindowService.class);
-        PendingIntent pendingIntent = PendingIntent.getService(
-                this,
-                0,
-                notificationIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID);
-        builder.setContentTitle("KeyHelp 浮窗");
-        builder.setContentText("浮窗服务运行中，点击查看脚本");
-        builder.setSmallIcon(android.R.drawable.ic_menu_info_details);
-        builder.setContentIntent(pendingIntent);
-        builder.setPriority(Notification.PRIORITY_LOW);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder.setOngoing(true);
-            builder.setCategory(Notification.CATEGORY_SERVICE);
-        }
-
-        return builder.build();
-    }
-
-    public static void setListener(OnFloatWindowListener l) {
-        listener = l;
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        Log.d(TAG, "FloatWindowService created");
-
-        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        createFloatWindow();
-    }
-
-    private void createFloatWindow() {
-        try {
-            int layoutType;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-            } else {
-                layoutType = WindowManager.LayoutParams.TYPE_PHONE;
-            }
-
-            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.WRAP_CONTENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT,
-                    layoutType,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                    PixelFormat.TRANSLUCENT
-            );
-            params.gravity = Gravity.TOP | Gravity.START;
-
-            floatView = createFloatLayout();
-
-            windowManager.addView(floatView, params);
-
-            setupViews();
-            setupTouchListeners();
-
-            isRunning = true;
-            Log.d(TAG, "Float window created");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error creating float window", e);
-        }
-    }
-
-    private View createFloatLayout() {
-        LinearLayout rootLayout = new LinearLayout(this);
-        rootLayout.setOrientation(LinearLayout.HORIZONTAL);
-        rootLayout.setBackgroundColor(0xCC000000);
-        rootLayout.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
-
-        closeBtn = createButton(android.R.drawable.ic_menu_close_clear_cancel);
-        scriptListBtn = createButton(android.R.drawable.ic_menu_sort_by_size);
-        stopBtn = createButton(android.R.drawable.ic_media_pause);
-        stopBtn.setVisibility(View.GONE);
-
-        LinearLayout middleLayout = new LinearLayout(this);
-        middleLayout.setOrientation(LinearLayout.VERTICAL);
-        middleLayout.setGravity(Gravity.CENTER);
-        middleLayout.setPadding(dpToPx(8), 0, dpToPx(8), 0);
-
-        statusText = new TextView(this);
-        statusText.setText("未运行");
-        statusText.setTextSize(12);
-        statusText.setTextColor(0xFFFFFFFF);
-        statusText.setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2));
-
-        scriptNameText = new TextView(this);
-        scriptNameText.setText("脚本列表");
-        scriptNameText.setTextSize(10);
-        scriptNameText.setTextColor(0xFFCCCCCC);
-        scriptNameText.setMaxWidth(dpToPx(200));
-        scriptNameText.setSingleLine(true);
-
-        middleLayout.addView(statusText);
-        middleLayout.addView(scriptNameText);
-
-        rootLayout.addView(closeBtn);
-        rootLayout.addView(createDivider());
-        rootLayout.addView(middleLayout);
-        rootLayout.addView(createDivider());
-        rootLayout.addView(scriptListBtn);
-        rootLayout.addView(createDivider());
-        rootLayout.addView(stopBtn);
-
-        return rootLayout;
-    }
-
-    private ImageView createButton(int iconRes) {
-        ImageView btn = new ImageView(this);
-        btn.setImageResource(iconRes);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dpToPx(40), dpToPx(40));
-        btn.setLayoutParams(params);
-        btn.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
-        btn.setBackgroundColor(0x00FFFFFF);
-        return btn;
-    }
-
-    private View createDivider() {
-        View divider = new View(this);
-        divider.setBackgroundColor(0xFF333333);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dpToPx(1), dpToPx(40));
-        divider.setLayoutParams(params);
-        return divider;
-    }
-
-    private int dpToPx(int dp) {
-        return (int) (dp * getResources().getDisplayMetrics().density);
-    }
-
-    private void setupTouchListeners() {
-        floatView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        originalX = (int) event.getRawX();
-                        originalY = (int) event.getRawY();
-                        originalXRaw = originalX;
-                        originalYRaw = originalY;
-                        return true;
-
-                    case MotionEvent.ACTION_MOVE:
-                        WindowManager.LayoutParams params = (WindowManager.LayoutParams) floatView.getLayoutParams();
-                        int newX = (int) event.getRawX();
-                        int newY = (int) event.getRawY();
-
-                        int deltaX = newX - originalX;
-                        int deltaY = newY - originalY;
-
-                        params.x += deltaX;
-                        params.y += deltaY;
-                        windowManager.updateViewLayout(floatView, params);
-
-                        originalX = newX;
-                        originalY = newY;
-                        return true;
-
-                    case MotionEvent.ACTION_UP:
-                        int upX = (int) event.getRawX();
-                        int upY = (int) event.getRawY();
-
-                        if (Math.abs(upX - originalXRaw) < 10 && Math.abs(upY - originalYRaw) < 10) {
-                        }
-                        return true;
-                }
-                return false;
-            }
-        });
-    }
-
-    private void closeFloatWindow() {
-        if (floatView != null && windowManager != null) {
-            try {
-                windowManager.removeView(floatView);
-                isRunning = false;
-                Log.d(TAG, "Float window closed");
-            } catch (Exception e) {
-                Log.e(TAG, "Error removing float window", e);
-            }
-        }
-    }
-
-    public static void updateStatus(String status) {
-        currentScript = status;
-    }
-
-    public static void updateScriptName(String name) {
-        currentScript = name;
-    }
-
-    public static void showStopButton(boolean show) {
-        // 需要使用 handler 来更新 UI
-    }
-
-    public static boolean isRunning() {
-        return isRunning;
     }
 
     @Override
@@ -301,26 +78,221 @@ public class FloatWindowService extends Service {
             startForeground(NOTIFICATION_ID, createNotification());
         }
 
-        if (intent != null) {
-            String action = intent.getAction();
-            if (ACTION_HIDE.equals(action)) {
-                closeFloatWindow();
-                isRunning = false;
-                stopForeground(true);
-            } else if (ACTION_SHOW.equals(action)) {
-                if (floatView == null || !floatView.isAttachedToWindow()) {
-                    createFloatWindow();
-                    isRunning = true;
-                }
-            } else {
-                if (floatView == null || !floatView.isAttachedToWindow()) {
-                    createFloatWindow();
-                    isRunning = true;
-                }
+        if (intent != null && ACTION_HIDE.equals(intent.getAction())) {
+            closeFloatWindow();
+            isRunning = false;
+            stopForeground(true);
+        } else {
+            if (floatLayout == null || !floatLayout.isAttachedToWindow()) {
+                createFloatWindow();
+                isRunning = true;
             }
         }
 
         return START_STICKY;
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "浮窗服务",
+                    NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription("保持浮窗服务运行");
+            NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    private Notification createNotification() {
+        Intent notificationIntent = new Intent(this, FloatWindowService.class);
+        PendingIntent pendingIntent = PendingIntent.getService(
+                this,
+                0,
+                notificationIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID);
+        builder.setContentTitle("KeyHelp 浮窗");
+        builder.setContentText("浮窗服务运行中");
+        builder.setSmallIcon(android.R.drawable.ic_menu_info_details);
+        builder.setContentIntent(pendingIntent);
+        builder.setPriority(Notification.PRIORITY_MIN);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setOngoing(true);
+            builder.setCategory(Notification.CATEGORY_SERVICE);
+        }
+
+        return builder.build();
+    }
+
+    private void createFloatWindow() {
+        try {
+            floatLayout = new LinearLayout(this);
+            floatLayout.setOrientation(LinearLayout.HORIZONTAL);
+            floatLayout.setBackgroundColor(0xCC000000);
+            int padding = dpToPx(8);
+            floatLayout.setPadding(padding, padding, padding, padding);
+
+            int buttonSize = dpToPx(40);
+            int dividerWidth = 1;
+
+            closeBtn = new Button(this);
+            closeBtn.setText("×");
+            closeBtn.setTextSize(24);
+            closeBtn.setTextColor(0xFFFFFFFF);
+            closeBtn.setBackgroundColor(0x00FFFFFF);
+            closeBtn.setLayoutParams(new LinearLayout.LayoutParams(buttonSize, buttonSize));
+
+            scriptListBtn = new Button(this);
+            scriptListBtn.setText("≡");
+            scriptListBtn.setTextSize(20);
+            scriptListBtn.setTextColor(0xFFFFFFFF);
+            scriptListBtn.setBackgroundColor(0x00FFFFFF);
+            scriptListBtn.setLayoutParams(new LinearLayout.LayoutParams(buttonSize, buttonSize));
+
+            stopBtn = new Button(this);
+            stopBtn.setText("■");
+            stopBtn.setTextSize(16);
+            stopBtn.setTextColor(0xFF000000);
+            stopBtn.setBackgroundColor(0x00FFFFFF);
+            stopBtn.setLayoutParams(new LinearLayout.LayoutParams(buttonSize, buttonSize));
+            stopBtn.setVisibility(View.GONE);
+
+            statusText = new TextView(this);
+            statusText.setText("未运行");
+            statusText.setTextSize(dpToPx(12));
+            statusText.setTextColor(0xFFFFFFFF);
+            statusText.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+
+            LinearLayout middleLayout = new LinearLayout(this);
+            middleLayout.setOrientation(LinearLayout.VERTICAL);
+            middleLayout.setGravity(Gravity.CENTER);
+            middleLayout.setPadding(dpToPx(8), 0, dpToPx(8), 0);
+            middleLayout.addView(statusText);
+
+            View divider1 = new View(this);
+            divider1.setBackgroundColor(0xFF333333);
+            divider1.setLayoutParams(new LinearLayout.LayoutParams(dpToPx(200), dividerWidth));
+
+            View divider2 = new View(this);
+            divider2.setBackgroundColor(0xFF333333);
+            divider2.setLayoutParams(new LinearLayout.LayoutParams(dpToPx(200), dividerWidth));
+
+            floatLayout.addView(closeBtn);
+            floatLayout.addView(divider1);
+            floatLayout.addView(middleLayout);
+            floatLayout.addView(divider2);
+            floatLayout.addView(scriptListBtn);
+            floatLayout.addView(divider1);
+            floatLayout.addView(stopBtn);
+
+            setupButtons();
+
+            int layoutType;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+            } else {
+                layoutType = WindowManager.LayoutParams.TYPE_PHONE;
+            }
+
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    layoutType,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT
+            );
+            params.gravity = Gravity.TOP | Gravity.START;
+            params.x = 100;
+            params.y = 200;
+
+            windowManager.addView(floatLayout, params);
+
+            setupTouchListeners();
+
+            Log.d(TAG, "Float window created");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error creating float window", e);
+        }
+    }
+
+    private void setupButtons() {
+        closeBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                closeFloatWindow();
+                if (listener != null) {
+                    listener.onClose();
+                }
+            }
+        });
+
+        scriptListBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (listener != null) {
+                    listener.onShowScriptList();
+                }
+            }
+        });
+
+        stopBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (listener != null) {
+                    listener.onStop();
+                }
+            }
+        });
+    }
+
+    private void setupTouchListeners() {
+        floatLayout.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        originalX = (int) event.getRawX();
+                        originalY = (int) event.getRawY();
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+                        WindowManager.LayoutParams params = (WindowManager.LayoutParams) floatLayout.getLayoutParams();
+                        int newX = (int) event.getRawX();
+                        int newY = (int) event.getRawY();
+
+                        int deltaX = newX - originalX;
+                        int deltaY = newY - originalY;
+
+                        params.x += deltaX;
+                        params.y += deltaY;
+                        windowManager.updateViewLayout(floatLayout, params);
+
+                        originalX = newX;
+                        originalY = newY;
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                        return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    private void closeFloatWindow() {
+        if (floatLayout != null && windowManager != null) {
+            try {
+                windowManager.removeView(floatLayout);
+                isRunning = false;
+                Log.d(TAG, "Float window closed");
+            } catch (Exception e) {
+                Log.e(TAG, "Error removing float window", e);
+            }
+        }
     }
 
     @Override
@@ -331,5 +303,9 @@ public class FloatWindowService extends Service {
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         notificationManager.cancel(NOTIFICATION_ID);
         Log.d(TAG, "FloatWindowService destroyed");
+    }
+
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density);
     }
 }

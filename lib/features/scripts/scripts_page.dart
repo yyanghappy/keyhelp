@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:keyhelp/core/models/script.dart';
 import 'package:keyhelp/core/repositories/script_repository.dart';
 import 'package:keyhelp/core/services/script_executor.dart';
+import 'package:keyhelp/shared/widgets/execution_progress_dialog.dart';
 
 class ScriptsPage extends StatefulWidget {
   const ScriptsPage({super.key});
@@ -129,44 +130,18 @@ class _ScriptsPageState extends State<ScriptsPage> {
                             IconButton(
                               icon: const Icon(Icons.play_arrow),
                               onPressed: () async {
-                                print(
-                                    '========================================');
-                                print('开始执行脚本: ${script.name}');
-                                print('脚本包含 ${script.actions.length} 个动作');
-                                print(
-                                    '========================================');
+                                final executor = ScriptExecutor();
 
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('执行脚本: ${script.name}'),
-                                    duration: const Duration(seconds: 2),
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) => ExecutionProgressDialog(
+                                    stateStream: executor.stateStream,
+                                    onClose: () => Navigator.pop(context),
                                   ),
                                 );
 
-                                try {
-                                  final executor = ScriptExecutor();
-                                  await executor.executeScript(script);
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '脚本执行完成: ${script.name}',
-                                        style: TextStyle(color: Colors.green),
-                                      ),
-                                      backgroundColor: Colors.green,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                } catch (e) {
-                                  print('❌ 执行失败: $e');
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('执行失败: $e'),
-                                      backgroundColor: Colors.red,
-                                      duration: const Duration(seconds: 3),
-                                    ),
-                                  );
-                                }
+                                await executor.executeScript(script);
                               },
                             ),
                             IconButton(

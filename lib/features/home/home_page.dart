@@ -4,6 +4,7 @@ import 'package:keyhelp/core/services/accessibility_service.dart';
 import 'package:keyhelp/features/scripts/scripts_page.dart';
 import 'package:keyhelp/features/record/record_page.dart';
 import 'package:keyhelp/features/schedule/schedule_page.dart';
+import 'package:keyhelp/features/float_window/float_window_page.dart';
 
 final accessibilityServiceProvider =
     Provider<AccessibilityService>((ref) => AccessibilityService());
@@ -165,6 +166,20 @@ class _HomePageState extends ConsumerState<HomePage> {
                         color: Colors.grey,
                         onTap: () {
                           _showSettingsDialog();
+                        },
+                      ),
+                      _buildFeatureCard(
+                        context,
+                        icon: Icons.picture_in_picture,
+                        title: '浮窗设置',
+                        description: '跨应用控制',
+                        color: Colors.purple,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const FloatWindowPage()),
+                          );
                         },
                       ),
                     ],

@@ -8,11 +8,13 @@ import 'package:keyhelp/features/logs/execution_logs_page.dart';
 class ExecutionProgressDialog extends StatefulWidget {
   final Stream<ExecutionState> stateStream;
   final VoidCallback onClose;
+  final VoidCallback onStop;
 
   const ExecutionProgressDialog({
     super.key,
     required this.stateStream,
     required this.onClose,
+    required this.onStop,
   });
 
   @override
@@ -33,8 +35,7 @@ class _ExecutionProgressDialogState extends State<ExecutionProgressDialog> {
           _state = state;
         });
 
-        if (state.status == ExecutionStatus.completed ||
-            state.status == ExecutionStatus.failed) {
+        if (state.status == ExecutionStatus.completed && !state.isLooping) {
           Future.delayed(const Duration(seconds: 3), () {
             if (mounted) {
               widget.onClose();
@@ -64,6 +65,8 @@ class _ExecutionProgressDialogState extends State<ExecutionProgressDialog> {
             if (_state.status == ExecutionStatus.completed ||
                 _state.status == ExecutionStatus.failed)
               _buildResult(),
+            if (_state.status == ExecutionStatus.running)
+              _buildRunningActions(),
             if (_state.status == ExecutionStatus.completed ||
                 _state.status == ExecutionStatus.failed)
               _buildActionButtons(),
@@ -126,16 +129,34 @@ class _ExecutionProgressDialogState extends State<ExecutionProgressDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _getStatusTitle(),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: _getStatusColor(),
-                        fontWeight: FontWeight.bold,
+                Row(
+                  children: [
+                    Text(
+                      _getStatusTitle(),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: _getStatusColor(),
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    if (_state.isLooping) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.loop, size: 16, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        _state.totalLoops == 0
+                            ? '无限循环'
+                            : '${_state.currentLoop}/${_state.totalLoops}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${_state.currentIndex}/${_state.totalActions} 动作',
+                  '第 ${_state.currentIndex} 个动作',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey[600],
                       ),
@@ -427,5 +448,26 @@ class _ExecutionProgressDialogState extends State<ExecutionProgressDialog> {
     final seconds = duration.inSeconds % 60;
     final milliseconds = duration.inMilliseconds % 1000;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${milliseconds.toString().padLeft(3, '0')}';
+  }
+
+  Widget _buildRunningActions() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: widget.onStop,
+              icon: const Icon(Icons.stop),
+              label: const Text('停止执行'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

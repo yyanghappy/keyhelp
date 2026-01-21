@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:keyhelp/core/models/script.dart';
 import 'package:keyhelp/core/repositories/script_repository.dart';
 import 'package:keyhelp/core/services/script_executor.dart';
+import 'package:keyhelp/core/models/execution_state.dart';
 import 'package:keyhelp/shared/widgets/execution_progress_dialog.dart';
 
 class ScriptsPage extends StatefulWidget {
@@ -14,11 +15,20 @@ class ScriptsPage extends StatefulWidget {
 class _ScriptsPageState extends State<ScriptsPage> {
   List<Script> _scripts = [];
   bool _isLoading = true;
+  ScriptExecutor? _executor;
+  bool _isLooping = false;
+  int _loopCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadScripts();
+  }
+
+  @override
+  void dispose() {
+    _executor?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadScripts() async {
@@ -130,18 +140,34 @@ class _ScriptsPageState extends State<ScriptsPage> {
                             IconButton(
                               icon: const Icon(Icons.play_arrow),
                               onPressed: () async {
-                                final executor = ScriptExecutor();
+                                final result = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => _buildLoopDialog(),
+                                );
+
+                                if (result == null) return;
+
+                                _executor = ScriptExecutor();
+
+                                if (!mounted) return;
 
                                 showDialog(
                                   context: context,
                                   barrierDismissible: false,
                                   builder: (context) => ExecutionProgressDialog(
-                                    stateStream: executor.stateStream,
+                                    stateStream: _executor!.stateStream,
                                     onClose: () => Navigator.pop(context),
+                                    onStop: () {
+                                      _executor?.stopExecution();
+                                    },
                                   ),
                                 );
 
-                                await executor.executeScript(script);
+                                await _executor!.executeScript(
+                                  script,
+                                  loop: _isLooping,
+                                  loopCount: _loopCount,
+                                );
                               },
                             ),
                             IconButton(
@@ -155,6 +181,55 @@ class _ScriptsPageState extends State<ScriptsPage> {
                     );
                   },
                 ),
+    );
+  }
+
+  Widget _buildLoopDialog() {
+    return AlertDialog(
+      title: const Text('循环设置'),
+      content: StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('启用循环'),
+                value: _isLooping,
+                onChanged: (value) {
+                  setDialogState(() {
+                    _isLooping = value;
+                  });
+                },
+              ),
+              if (_isLooping)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: '循环次数',
+                      hintText: '0 表示无限循环',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      _loopCount = int.tryParse(value) ?? 0;
+                    },
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('开始执行'),
+        ),
+      ],
     );
   }
 

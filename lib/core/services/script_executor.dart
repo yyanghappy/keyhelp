@@ -9,6 +9,9 @@ class ScriptExecutor {
   final AccessibilityService _accessibilityService;
   bool _isExecuting = false;
   int _currentIndex = 0;
+  int _currentLoop = 1;
+  int _totalLoops = 0;
+  bool _isLooping = false;
   final StreamController<ExecutionState> _stateController =
       StreamController.broadcast();
   DateTime? _executionStartTime;
@@ -17,15 +20,23 @@ class ScriptExecutor {
 
   bool get isExecuting => _isExecuting;
   int get currentIndex => _currentIndex;
+  int get currentLoop => _currentLoop;
   Stream<ExecutionState> get stateStream => _stateController.stream;
 
-  Future<void> executeScript(Script script) async {
+  Future<void> executeScript(
+    Script script, {
+    bool loop = false,
+    int loopCount = 0,
+  }) async {
     if (_isExecuting) {
       debugPrint('脚本正在执行中');
       return;
     }
 
     _isExecuting = true;
+    _isLooping = loop;
+    _totalLoops = loopCount;
+    _currentLoop = 1;
     _currentIndex = 0;
     _executionStartTime = DateTime.now();
     final List<ExecutionLog> logs = [];
@@ -35,106 +46,132 @@ class ScriptExecutor {
         status: ExecutionStatus.running,
         currentIndex: 0,
         totalActions: script.actions.length,
+        currentLoop: _currentLoop,
+        totalLoops: _totalLoops,
+        isLooping: _isLooping,
         logs: logs,
       ));
 
       debugPrint('========================================');
       debugPrint('开始执行脚本: ${script.name}');
       debugPrint('脚本包含 ${script.actions.length} 个动作');
+      if (_isLooping) {
+        debugPrint('循环模式: ${_totalLoops == 0 ? "无限循环" : "$_totalLoops 次"}');
+      }
       debugPrint('========================================');
 
-      for (int i = 0; i < script.actions.length; i++) {
+      while (_isExecuting) {
+        debugPrint('--- 第 $_currentLoop 次循环 ---');
+
+        for (int i = 0; i < script.actions.length; i++) {
+          if (!_isExecuting) break;
+
+          _currentIndex = i;
+          final action = script.actions[i];
+
+          debugPrint('--- 动作 ${i + 1}/${script.actions.length} ---');
+          debugPrint('类型: ${action.type}');
+          debugPrint('延迟: ${action.delayMs ?? 0}ms');
+
+          _stateController.add(ExecutionState(
+            status: ExecutionStatus.running,
+            currentIndex: i + 1,
+            totalActions: script.actions.length,
+            currentAction: action,
+            currentLoop: _currentLoop,
+            totalLoops: _totalLoops,
+            isLooping: _isLooping,
+            elapsedTime: DateTime.now().difference(_executionStartTime!),
+            logs: List.from(logs),
+          ));
+
+          if (action.delayMs != null && action.delayMs! > 0) {
+            debugPrint('⏳ 等待 ${action.delayMs}ms...');
+            await Future.delayed(Duration(milliseconds: action.delayMs!));
+          }
+
+          switch (action.type) {
+            case ActionType.tap:
+              debugPrint('点击坐标: (${action.x}, ${action.y})');
+              await _executeAction(action);
+              logs.add(ExecutionLog(
+                timestamp: DateTime.now(),
+                actionIndex: i,
+                action: action,
+                message: '点击 (${action.x}, ${action.y})',
+                isSuccess: true,
+              ));
+              break;
+            case ActionType.swipe:
+              debugPrint(
+                  '滑动: (${action.x}, ${action.y}) -> (${action.endX}, ${action.endY})');
+              await _executeAction(action);
+              logs.add(ExecutionLog(
+                timestamp: DateTime.now(),
+                actionIndex: i,
+                action: action,
+                message:
+                    '滑动 (${action.x}, ${action.y}) -> (${action.endX}, ${action.endY})',
+                isSuccess: true,
+              ));
+              break;
+            case ActionType.longPress:
+              debugPrint('长按坐标: (${action.x}, ${action.y})');
+              await _executeAction(action);
+              logs.add(ExecutionLog(
+                timestamp: DateTime.now(),
+                actionIndex: i,
+                action: action,
+                message: '长按 (${action.x}, ${action.y})',
+                isSuccess: true,
+              ));
+              break;
+            case ActionType.wait:
+              debugPrint('等待: ${action.delayMs}ms');
+              await _executeAction(action);
+              logs.add(ExecutionLog(
+                timestamp: DateTime.now(),
+                actionIndex: i,
+                action: action,
+                message: '等待 ${action.delayMs}ms',
+                isSuccess: true,
+              ));
+              break;
+            case ActionType.condition:
+              debugPrint('条件判断: ${action.condition}');
+              logs.add(ExecutionLog(
+                timestamp: DateTime.now(),
+                actionIndex: i,
+                action: action,
+                message: '条件判断: ${action.condition}',
+                isSuccess: true,
+              ));
+              break;
+            case ActionType.loop:
+              debugPrint('循环: ${action.loopCount}次');
+              logs.add(ExecutionLog(
+                timestamp: DateTime.now(),
+                actionIndex: i,
+                action: action,
+                message: '循环 ${action.loopCount}次',
+                isSuccess: true,
+              ));
+              break;
+          }
+        }
+
         if (!_isExecuting) break;
 
-        _currentIndex = i;
-        final action = script.actions[i];
-
-        debugPrint('--- 动作 ${i + 1}/${script.actions.length} ---');
-        debugPrint('类型: ${action.type}');
-        debugPrint('延迟: ${action.delayMs ?? 0}ms');
-
-        _stateController.add(ExecutionState(
-          status: ExecutionStatus.running,
-          currentIndex: i + 1,
-          totalActions: script.actions.length,
-          currentAction: action,
-          elapsedTime: DateTime.now().difference(_executionStartTime!),
-          logs: List.from(logs),
-        ));
-
-        if (action.delayMs != null && action.delayMs! > 0) {
-          debugPrint('⏳ 等待 ${action.delayMs}ms...');
-          await Future.delayed(Duration(milliseconds: action.delayMs!));
+        if (!_isLooping) {
+          break;
         }
 
-        switch (action.type) {
-          case ActionType.tap:
-            debugPrint('点击坐标: (${action.x}, ${action.y})');
-            await _executeAction(action);
-            logs.add(ExecutionLog(
-              timestamp: DateTime.now(),
-              actionIndex: i,
-              action: action,
-              message: '点击 (${action.x}, ${action.y})',
-              isSuccess: true,
-            ));
-            break;
-          case ActionType.swipe:
-            debugPrint(
-                '滑动: (${action.x}, ${action.y}) -> (${action.endX}, ${action.endY})');
-            await _executeAction(action);
-            logs.add(ExecutionLog(
-              timestamp: DateTime.now(),
-              actionIndex: i,
-              action: action,
-              message:
-                  '滑动 (${action.x}, ${action.y}) -> (${action.endX}, ${action.endY})',
-              isSuccess: true,
-            ));
-            break;
-          case ActionType.longPress:
-            debugPrint('长按坐标: (${action.x}, ${action.y})');
-            await _executeAction(action);
-            logs.add(ExecutionLog(
-              timestamp: DateTime.now(),
-              actionIndex: i,
-              action: action,
-              message: '长按 (${action.x}, ${action.y})',
-              isSuccess: true,
-            ));
-            break;
-          case ActionType.wait:
-            debugPrint('等待: ${action.delayMs}ms');
-            await _executeAction(action);
-            logs.add(ExecutionLog(
-              timestamp: DateTime.now(),
-              actionIndex: i,
-              action: action,
-              message: '等待 ${action.delayMs}ms',
-              isSuccess: true,
-            ));
-            break;
-          case ActionType.condition:
-            debugPrint('条件判断: ${action.condition}');
-            logs.add(ExecutionLog(
-              timestamp: DateTime.now(),
-              actionIndex: i,
-              action: action,
-              message: '条件判断: ${action.condition}',
-              isSuccess: true,
-            ));
-            break;
-          case ActionType.loop:
-            debugPrint('循环: ${action.loopCount}次');
-            logs.add(ExecutionLog(
-              timestamp: DateTime.now(),
-              actionIndex: i,
-              action: action,
-              message: '循环 ${action.loopCount}次',
-              isSuccess: true,
-            ));
-            break;
+        if (_totalLoops > 0 && _currentLoop >= _totalLoops) {
+          break;
         }
+
+        _currentLoop++;
+        debugPrint('--- 开始第 $_currentLoop 次循环 ---');
       }
 
       debugPrint('========================================');
@@ -145,6 +182,9 @@ class ScriptExecutor {
         status: ExecutionStatus.completed,
         currentIndex: script.actions.length,
         totalActions: script.actions.length,
+        currentLoop: _currentLoop,
+        totalLoops: _totalLoops,
+        isLooping: _isLooping,
         elapsedTime: DateTime.now().difference(_executionStartTime!),
         logs: List.from(logs),
       ));
@@ -157,6 +197,9 @@ class ScriptExecutor {
         status: ExecutionStatus.failed,
         currentIndex: _currentIndex,
         totalActions: script.actions.length,
+        currentLoop: _currentLoop,
+        totalLoops: _totalLoops,
+        isLooping: _isLooping,
         errorMessage: e.toString(),
         elapsedTime: _executionStartTime != null
             ? DateTime.now().difference(_executionStartTime!)
@@ -166,6 +209,7 @@ class ScriptExecutor {
     } finally {
       _isExecuting = false;
       _currentIndex = 0;
+      _currentLoop = 1;
       debugPrint('执行状态: 已停止');
     }
   }
@@ -198,6 +242,7 @@ class ScriptExecutor {
   void stopExecution() {
     if (_isExecuting) {
       _isExecuting = false;
+      _isLooping = false;
       debugPrint('停止脚本执行');
     }
   }

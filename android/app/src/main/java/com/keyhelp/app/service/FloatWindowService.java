@@ -1,14 +1,8 @@
 package com.keyhelp.app.service;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.PixelFormat;
-import android.os.Build;
 import android.os.IBinder;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -21,8 +15,6 @@ import android.util.Log;
 
 public class FloatWindowService extends Service {
     private static final String TAG = "FloatWindowService";
-    private static final String CHANNEL_ID = "float_window_channel";
-    private static final int NOTIFICATION_ID = 1001;
     public static final String ACTION_HIDE = "com.keyhelp.app.action.HIDE_FLOAT";
     public static final String ACTION_SHOW = "com.keyhelp.app.action.SHOW_FLOAT";
 
@@ -58,9 +50,6 @@ public class FloatWindowService extends Service {
         super.onCreate();
         Log.d(TAG, "FloatWindowService created");
 
-        createNotificationChannel();
-        startForeground(NOTIFICATION_ID, createNotification());
-
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createFloatWindow();
     }
@@ -74,14 +63,9 @@ public class FloatWindowService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForeground(NOTIFICATION_ID, createNotification());
-        }
-
         if (intent != null && ACTION_HIDE.equals(intent.getAction())) {
             closeFloatWindow();
             isRunning = false;
-            stopForeground(true);
         } else {
             if (floatLayout == null || !floatLayout.isAttachedToWindow()) {
                 createFloatWindow();
@@ -90,41 +74,6 @@ public class FloatWindowService extends Service {
         }
 
         return START_STICKY;
-    }
-
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "浮窗服务",
-                    NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("保持浮窗服务运行");
-            NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
-
-    private Notification createNotification() {
-        Intent notificationIntent = new Intent(this, FloatWindowService.class);
-        PendingIntent pendingIntent = PendingIntent.getService(
-                this,
-                0,
-                notificationIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID);
-        builder.setContentTitle("KeyHelp 浮窗");
-        builder.setContentText("浮窗服务运行中");
-        builder.setSmallIcon(android.R.drawable.ic_menu_info_details);
-        builder.setContentIntent(pendingIntent);
-        builder.setPriority(Notification.PRIORITY_MIN);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder.setOngoing(true);
-            builder.setCategory(Notification.CATEGORY_SERVICE);
-        }
-
-        return builder.build();
     }
 
     private void createFloatWindow() {
@@ -191,7 +140,7 @@ public class FloatWindowService extends Service {
             setupButtons();
 
             int layoutType;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
             } else {
                 layoutType = WindowManager.LayoutParams.TYPE_PHONE;
@@ -299,9 +248,6 @@ public class FloatWindowService extends Service {
     public void onDestroy() {
         super.onDestroy();
         closeFloatWindow();
-        stopForeground(true);
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        notificationManager.cancel(NOTIFICATION_ID);
         Log.d(TAG, "FloatWindowService destroyed");
     }
 

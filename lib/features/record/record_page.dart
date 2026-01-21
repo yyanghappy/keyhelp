@@ -1,0 +1,289 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:keyhelp/core/services/script_recorder.dart';
+import 'package:keyhelp/core/repositories/script_repository.dart';
+import 'package:keyhelp/shared/widgets/touch_recorder.dart';
+import 'package:keyhelp/shared/widgets/recording_overlay.dart';
+
+final recorderProvider = Provider<ScriptRecorder>((ref) {
+  return ScriptRecorder();
+});
+
+class RecordPage extends ConsumerStatefulWidget {
+  const RecordPage({super.key});
+
+  @override
+  ConsumerState<RecordPage> createState() => _RecordPageState();
+}
+
+class _RecordPageState extends ConsumerState<RecordPage> {
+  final TextEditingController _nameController = TextEditingController();
+  bool _isRecording = false;
+  int _actionCount = 0;
+  String _duration = '00:00:00';
+  DateTime? _startTime;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.text = '脚本_${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _toggleRecording() {
+    final recorder = ref.read(recorderProvider);
+
+    if (recorder.isRecording) {
+      recorder.stopRecording();
+      _timer?.cancel();
+      setState(() {
+        _isRecording = false;
+        _duration = '00:00:00';
+      });
+    } else {
+      _startTime = DateTime.now();
+      recorder.startRecording();
+      setState(() {
+        _isRecording = true;
+        _actionCount = 0;
+        _duration = '00:00:00';
+      });
+
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_startTime == null) return;
+        final durationVal = DateTime.now().difference(_startTime!);
+        setState(() {
+          _duration = _formatDuration(durationVal);
+        });
+      });
+    }
+  }
+
+  void _onTap(double x, double y, DateTime timestamp) {
+    if (!_isRecording) return;
+
+    final recorder = ref.read(recorderProvider);
+    recorder.recordTap(x, y, timestamp);
+
+    setState(() {
+      _actionCount++;
+    });
+  }
+
+  void _onSwipe(
+    double startX,
+    double startY,
+    double endX,
+    double endY,
+    DateTime timestamp,
+  ) {
+    if (!_isRecording) return;
+
+    final recorder = ref.read(recorderProvider);
+    recorder.recordSwipe(startX, startY, endX, endY, timestamp);
+
+    setState(() {
+      _actionCount++;
+    });
+  }
+
+  void _onLongPress(double x, double y, DateTime timestamp) {
+    if (!_isRecording) return;
+
+    final recorder = ref.read(recorderProvider);
+    recorder.recordLongPress(x, y, timestamp);
+
+    setState(() {
+      _actionCount++;
+    });
+  }
+
+  Future<void> _saveScript() async {
+    final recorder = ref.read(recorderProvider);
+    final name = _nameController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入脚本名称')),
+      );
+      return;
+    }
+
+    if (recorder.actions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('没有录制任何动作')),
+      );
+      return;
+    }
+
+    final script = recorder.createScript(name);
+
+    await ScriptRepository.instance.saveScript(script);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('脚本已保存: ${script.name}')),
+      );
+
+      setState(() {
+        _isRecording = false;
+        _actionCount = 0;
+        _duration = '00:00:00';
+      });
+
+      Navigator.pop(context);
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours.toString().padLeft(2, '0');
+    final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RecordingOverlay(
+      isRecording: _isRecording,
+      child: TouchRecorder(
+        isRecording: _isRecording,
+        onTap: _onTap,
+        onSwipe: _onSwipe,
+        onLongPress: _onLongPress,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('脚本录制'),
+            backgroundColor: _isRecording ? Colors.red : null,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: '脚本名称',
+                    border: OutlineInputBorder(),
+                  ),
+                  enabled: !_isRecording,
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: _isRecording
+                        ? Colors.red.shade50
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _isRecording
+                            ? Icons.fiber_manual_record
+                            : Icons.radio_button_unchecked,
+                        size: 80,
+                        color: _isRecording ? Colors.red : Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _isRecording ? '录制中...' : '未录制',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _duration,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontFamily: 'monospace'),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '已录制 $_actionCount 个动作',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _toggleRecording,
+                      icon: Icon(_isRecording ? Icons.stop : Icons.play_arrow),
+                      label: Text(_isRecording ? '停止' : '开始'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            _isRecording ? Colors.red : Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 16,
+                        ),
+                      ),
+                    ),
+                    if (!_isRecording && _actionCount > 0)
+                      ElevatedButton.icon(
+                        onPressed: _saveScript,
+                        icon: const Icon(Icons.save),
+                        label: const Text('保存'),
+                      ),
+                  ],
+                ),
+                const Spacer(),
+                if (!_isRecording)
+                  Column(
+                    children: [
+                      const Icon(Icons.info_outline,
+                          size: 32, color: Colors.grey),
+                      const SizedBox(height: 8),
+                      Text(
+                        '点击"开始"后，在屏幕任意位置执行操作即可录制',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      const Icon(Icons.touch_app, size: 32, color: Colors.red),
+                      const SizedBox(height: 8),
+                      Text(
+                        '正在录制您的操作...',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.red,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '点击屏幕任意位置',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.red[300],
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

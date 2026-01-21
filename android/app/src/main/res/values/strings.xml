@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KeyHelp</string>
+    <string name="accessibility_service_description">KeyHelp自动化工具 - 用于录制和执行触控操作</string>
+</resources>

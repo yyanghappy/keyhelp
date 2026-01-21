@@ -68,6 +68,7 @@ class FloatWindowMethodChannel {
     private fun showFloatWindow(result: MethodChannel.Result) {
         try {
             val intent = Intent(context, FloatWindowService::class.java)
+            intent.action = FloatWindowService.ACTION_SHOW
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -84,7 +85,8 @@ class FloatWindowMethodChannel {
     private fun hideFloatWindow(result: MethodChannel.Result) {
         try {
             val intent = Intent(context, FloatWindowService::class.java)
-            context.stopService(intent)
+            intent.action = FloatWindowService.ACTION_HIDE
+            context.startService(intent)
             result.success(true)
             Log.d(TAG, "Float window hidden")
         } catch (e: Exception) {

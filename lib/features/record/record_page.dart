@@ -5,6 +5,7 @@ import 'package:keyhelp/core/services/script_recorder.dart';
 import 'package:keyhelp/core/repositories/script_repository.dart';
 import 'package:keyhelp/shared/widgets/touch_recorder.dart';
 import 'package:keyhelp/shared/widgets/recording_overlay.dart';
+import 'package:keyhelp/shared/widgets/recording_preview.dart';
 
 final recorderProvider = Provider<ScriptRecorder>((ref) {
   return ScriptRecorder();
@@ -104,6 +105,45 @@ class _RecordPageState extends ConsumerState<RecordPage> {
     setState(() {
       _actionCount++;
     });
+  }
+
+  void _onPositionChanged(int index, double newX, double newY) {
+    final recorder = ref.read(recorderProvider);
+    final actions = recorder.actions;
+
+    if (index >= 0 && index < actions.length) {
+      final action = actions[index];
+      action.x = newX;
+      action.y = newY;
+      setState(() {});
+    }
+  }
+
+  void _showPreview() {
+    final recorder = ref.read(recorderProvider);
+    if (recorder.actions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('暂无录制内容')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RecordingPreview(
+          actions: recorder.actions,
+          onClear: () {
+            recorder.clearRecording();
+            setState(() {
+              _actionCount = 0;
+            });
+            Navigator.pop(context);
+          },
+          onPositionChanged: _onPositionChanged,
+        ),
+      ),
+    );
   }
 
   Future<void> _saveScript() async {
@@ -235,9 +275,25 @@ class _RecordPageState extends ConsumerState<RecordPage> {
                     ),
                     if (!_isRecording && _actionCount > 0)
                       ElevatedButton.icon(
+                        onPressed: _showPreview,
+                        icon: const Icon(Icons.visibility),
+                        label: const Text('预览'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (!_isRecording && _actionCount > 0)
+                      ElevatedButton.icon(
                         onPressed: _saveScript,
                         icon: const Icon(Icons.save),
                         label: const Text('保存'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                   ],
                 ),

@@ -17,12 +17,15 @@ class FloatWindowService {
   static final _playController = StreamController<void>.broadcast();
   static final _pauseController = StreamController<void>.broadcast();
   static final _stopController = StreamController<void>.broadcast();
+  static final _executeScriptController = StreamController<String>.broadcast();
 
   static Stream<bool> get windowStateStream => _windowStateController.stream;
   static Stream<void> get scriptListStream => _scriptListController.stream;
   static Stream<void> get playStream => _playController.stream;
   static Stream<void> get pauseStream => _pauseController.stream;
   static Stream<void> get stopStream => _stopController.stream;
+  static Stream<String> get executeScriptStream =>
+      _executeScriptController.stream;
 
   static bool get hasPermission => _hasPermission;
   static bool get isFloatingNow => _isFloating;
@@ -56,6 +59,12 @@ class FloatWindowService {
               break;
             case 'stop':
               _stopController.add(null);
+              break;
+            case 'executeScript':
+              final scriptId = event['scriptId'] as String?;
+              if (scriptId != null) {
+                _executeScriptController.add(scriptId);
+              }
               break;
           }
         }
@@ -145,6 +154,22 @@ class FloatWindowService {
     }
   }
 
+  static Future<void> updateExecutionState({
+    required String state,
+    required bool isPlaying,
+    required bool isPaused,
+  }) async {
+    try {
+      await _channel.invokeMethod('updateExecutionState', {
+        'state': state,
+        'isPlaying': isPlaying,
+        'isPaused': isPaused,
+      });
+    } catch (e) {
+      print('更新执行状态失败: $e');
+    }
+  }
+
   static void dispose() {
     _eventSubscription?.cancel();
     _windowStateController.close();
@@ -152,5 +177,6 @@ class FloatWindowService {
     _playController.close();
     _pauseController.close();
     _stopController.close();
+    _executeScriptController.close();
   }
 }

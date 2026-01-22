@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keyhelp/shared/services/float_window_service.dart';
@@ -19,11 +21,31 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   List<Script> _scripts = [];
   ScriptExecutor? _executor;
   bool _isExecuting = false;
+  StreamSubscription<bool>? _windowStateSubscription;
+  StreamSubscription<void>? _scriptListSubscription;
 
   @override
   void initState() {
     super.initState();
+    _setupEventListeners();
     _loadData();
+  }
+
+  void _setupEventListeners() {
+    _windowStateSubscription =
+        FloatWindowService.windowStateStream.listen((isOpen) {
+      if (mounted) {
+        setState(() {
+          _isFloating = isOpen;
+        });
+      }
+    });
+
+    _scriptListSubscription = FloatWindowService.scriptListStream.listen((_) {
+      if (mounted) {
+        _showScriptSelectionDialog();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -240,6 +262,94 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
               ],
             ),
     );
+  }
+
+  void _showScriptSelectionDialog() {
+    if (_scripts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('暂无脚本，请先添加脚本')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('选择脚本'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _scripts.length,
+            itemBuilder: (context, index) {
+              final script = _scripts[index];
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blue.shade100,
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(script.name),
+                subtitle: Text('${script.actions.length} 个动作'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _executeScript(script);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executeScript(Script script) async {
+    try {
+      setState(() {
+        _isExecuting = true;
+      });
+
+      _executor = ScriptExecutor();
+
+      // 更新浮窗状态
+      await FloatWindowService.setCurrentScript(
+        scriptId: script.id,
+        scriptName: script.name,
+      );
+      await FloatWindowService.updateExecutionState(
+        state: '准备运行',
+        isPlaying: false,
+        isPaused: false,
+      );
+
+      await _executor!.executeScript(script);
+
+      if (mounted) {
+        setState(() {
+          _isExecuting = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isExecuting = false;
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('执行失败: $e')),
+      );
+    }
   }
 
   Widget _buildInstructionItem({

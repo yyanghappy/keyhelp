@@ -72,6 +72,11 @@ class FloatWindowMethodChannel {
                 Log.d(TAG, "Stop execution event")
                 eventSink?.success(mapOf("event" to "stop"))
             }
+
+            override fun onExecuteScript(scriptId: String) {
+                Log.d(TAG, "Execute script event: $scriptId")
+                eventSink?.success(mapOf("event" to "executeScript", "scriptId" to scriptId))
+            }
         })
     }
 
@@ -151,7 +156,7 @@ class FloatWindowMethodChannel {
 
     private fun isFloating(result: MethodChannel.Result) {
         try {
-            val isFloating = FloatWindowService.isRunning()
+            val isFloating = FloatWindowService.isRunning
             result.success(isFloating)
             Log.d(TAG, "Is floating: $isFloating")
         } catch (e: Exception) {
@@ -166,8 +171,8 @@ class FloatWindowMethodChannel {
             val isPlaying = call.argument<Boolean>("isPlaying") ?: false
             val isPaused = call.argument<Boolean>("isPaused") ?: false
 
-            val service = FloatWindowService.getInstance()
-            service?.updateExecutionState(state, isPlaying, isPaused)
+            FloatWindowService.setCurrentScriptId(FloatWindowService.currentScriptId ?: "")
+            FloatWindowService.setCurrentScriptName(FloatWindowService.currentScriptName ?: "")
 
             result.success(true)
             Log.d(TAG, "Execution state updated: $state, playing: $isPlaying, paused: $isPaused")
@@ -185,11 +190,6 @@ class FloatWindowMethodChannel {
             FloatWindowService.setCurrentScriptId(scriptId ?: "")
             FloatWindowService.setCurrentScriptName(scriptName ?: "")
 
-            val service = FloatWindowService.getInstance()
-            if (service != null && scriptName != null) {
-                service.updateExecutionState(scriptName, false, false)
-            }
-
             result.success(true)
             Log.d(TAG, "Current script set: $scriptName")
         } catch (e: Exception) {
@@ -203,11 +203,6 @@ class FloatWindowMethodChannel {
             val scriptName = call.argument<String>("scriptName")
 
             FloatWindowService.setCurrentScriptName(scriptName ?: "")
-
-            val service = FloatWindowService.getInstance()
-            if (service != null) {
-                service.updateExecutionState(scriptName, false, false)
-            }
 
             result.success(true)
             Log.d(TAG, "Script name updated: $scriptName")

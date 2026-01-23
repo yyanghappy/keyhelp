@@ -51,6 +51,7 @@ public class FloatWindowService extends Service {
     public static boolean isRunning = false;
 
     private static OnFloatWindowListener listener;
+    private static FloatWindowService instance;
 
     public interface OnFloatWindowListener {
         void onClose();
@@ -77,6 +78,7 @@ public class FloatWindowService extends Service {
     public void onCreate() {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        instance = this;
         Log.d(TAG, "FloatWindowService created");
     }
 
@@ -378,15 +380,19 @@ public class FloatWindowService extends Service {
         Log.d(TAG, "Float window closed");
     }
 
-    public void updateExecutionState(String state, boolean isPlaying, boolean isPaused) {
+    public static void updateExecutionState(String state, boolean isPlaying, boolean isPaused) {
         Log.d(TAG, "updateExecutionState: state=" + state + ", isPlaying=" + isPlaying + ", isPaused=" + isPaused + ", currentScriptId=" + currentScriptId);
+        
+        if (instance != null && instance.floatLayout != null && instance.floatLayout.isAttachedToWindow()) {
+            instance.updateExecutionStateImpl(state, isPlaying, isPaused);
+        }
+    }
+    
+    private void updateExecutionStateImpl(String state, boolean isPlaying, boolean isPaused) {
         if (statusText != null) {
             statusText.setText(state);
         }
         FloatWindowService.isPaused = isPaused;
-
-        if (!isPlaying) {
-        }
 
         if (scriptNameText != null) {
             if (currentScriptName == null) {
@@ -418,8 +424,8 @@ public class FloatWindowService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        instance = null;
         closeFloatWindow();
-        Log.d(TAG, "FloatWindowService destroyed");
     }
 
     @Override

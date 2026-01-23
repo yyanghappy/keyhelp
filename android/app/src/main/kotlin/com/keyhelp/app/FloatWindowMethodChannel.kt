@@ -174,6 +174,9 @@ class FloatWindowMethodChannel {
             FloatWindowService.setCurrentScriptId(FloatWindowService.currentScriptId ?: "")
             FloatWindowService.setCurrentScriptName(FloatWindowService.currentScriptName ?: "")
 
+            // 更新浮窗 UI
+            FloatWindowService.updateExecutionState(state, isPlaying, isPaused)
+
             result.success(true)
             Log.d(TAG, "Execution state updated: $state, playing: $isPlaying, paused: $isPaused")
         } catch (e: Exception) {

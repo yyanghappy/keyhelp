@@ -173,6 +173,14 @@ public class FloatWindowService extends Service {
                 }
             }
         });
+        
+        closeBtn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
+            }
+        });
 
         minimizeBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -185,6 +193,14 @@ public class FloatWindowService extends Service {
                 }
             }
         });
+        
+        minimizeBtn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
+            }
+        });
 
         scriptInfoContainer.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -193,6 +209,14 @@ public class FloatWindowService extends Service {
                 if (listener != null) {
                     listener.onShowScriptList();
                 }
+            }
+        });
+        
+        scriptInfoContainer.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
             }
         });
 
@@ -205,14 +229,30 @@ public class FloatWindowService extends Service {
                 }
             }
         });
+        
+        playBtn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
+            }
+        });
 
         pauseBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.d(TAG, "Pause button clicked, isPaused: " + isPaused);
+                Log.d(TAG, "Pause button clicked");
                 if (listener != null) {
                     listener.onPause();
                 }
+            }
+        });
+        
+        pauseBtn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
             }
         });
 
@@ -223,6 +263,14 @@ public class FloatWindowService extends Service {
                 if (listener != null) {
                     listener.onStop();
                 }
+            }
+        });
+        
+        stopBtn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
             }
         });
     }

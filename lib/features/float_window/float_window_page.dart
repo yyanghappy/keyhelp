@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:keyhelp/core/models/script.dart';
+import 'package:keyhelp/core/models/execution_state.dart';
+import 'package:keyhelp/core/services/script_executor.dart';
 import 'package:keyhelp/shared/services/float_window_service.dart';
 import 'package:keyhelp/core/services/script_executor.dart';
 import 'package:keyhelp/core/models/script.dart';
@@ -21,8 +24,12 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   List<Script> _scripts = [];
   ScriptExecutor? _executor;
   bool _isExecuting = false;
+  Script? _currentScript;
   StreamSubscription<bool>? _windowStateSubscription;
   StreamSubscription<void>? _scriptListSubscription;
+  StreamSubscription<void>? _playSubscription;
+  StreamSubscription<void>? _pauseSubscription;
+  StreamSubscription<void>? _stopSubscription;
 
   @override
   void initState() {
@@ -45,6 +52,18 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
       if (mounted) {
         _showScriptSelectionDialog();
       }
+    });
+
+    _playSubscription = FloatWindowService.playStream.listen((_) {
+      _handlePlay();
+    });
+
+    _pauseSubscription = FloatWindowService.pauseStream.listen((_) {
+      _handlePause();
+    });
+
+    _stopSubscription = FloatWindowService.stopStream.listen((_) {
+      _handleStop();
     });
   }
 
@@ -318,6 +337,7 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
     try {
       setState(() {
         _isExecuting = true;
+        _currentScript = script;
       });
 
       _executor = ScriptExecutor();
@@ -327,11 +347,59 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
         scriptId: script.id,
         scriptName: script.name,
       );
+
+      // 先设置为准备运行状态
       await FloatWindowService.updateExecutionState(
         state: '准备运行',
         isPlaying: false,
         isPaused: false,
       );
+
+      // 订阅执行状态变化，及时更新浮窗显示
+      _executor!.stateStream.listen((state) {
+        switch (state.status) {
+          case ExecutionStatus.running:
+            FloatWindowService.updateExecutionState(
+              state: '执行中',
+              isPlaying: true,
+              isPaused: false,
+            );
+            break;
+          case ExecutionStatus.paused:
+            FloatWindowService.updateExecutionState(
+              state: '已暂停',
+              isPlaying: true,
+              isPaused: true,
+            );
+            break;
+          case ExecutionStatus.completed:
+            FloatWindowService.updateExecutionState(
+              state: '执行完成',
+              isPlaying: false,
+              isPaused: false,
+            );
+            if (mounted) {
+              setState(() {
+                _isExecuting = false;
+              });
+            }
+            break;
+          case ExecutionStatus.failed:
+            FloatWindowService.updateExecutionState(
+              state: '执行失败',
+              isPlaying: false,
+              isPaused: false,
+            );
+            if (mounted) {
+              setState(() {
+                _isExecuting = false;
+              });
+            }
+            break;
+          default:
+            break;
+        }
+      });
 
       await _executor!.executeScript(script);
 
@@ -345,9 +413,41 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
         setState(() {
           _isExecuting = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('执行失败: $e')),
+        );
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('执行失败: $e')),
+    }
+  }
+
+  void _handlePlay() {
+    if (_currentScript != null && _executor != null && _isExecuting) {
+      // 暂停中恢复执行
+      // TODO: 实现 resume 方法
+    } else if (_currentScript != null && !_isExecuting) {
+      // 重新开始执行
+      _executeScript(_currentScript!);
+    }
+  }
+
+  void _handlePause() {
+    if (_executor != null && _isExecuting) {
+      // TODO: 实现 pause 方法
+    }
+  }
+
+  void _handleStop() {
+    if (_executor != null && _isExecuting) {
+      // TODO: 实现 stop 方法
+      if (mounted) {
+        setState(() {
+          _isExecuting = false;
+        });
+      }
+      FloatWindowService.updateExecutionState(
+        state: '已停止',
+        isPlaying: false,
+        isPaused: false,
       );
     }
   }

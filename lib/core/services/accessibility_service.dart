@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:keyhelp/core/models/action.dart';
 import 'package:keyhelp/shared/utils/accessibility_platform_service.dart';
@@ -9,21 +10,117 @@ class AccessibilityService {
   factory AccessibilityService() => _instance;
   AccessibilityService._internal() {
     AccessibilityPlatformService.initialize();
+    _setupEventListener();
   }
 
   bool _isRecording = false;
   bool _isExecuting = false;
+  bool _autoRecordMode = false; // 自动录制模式
   final List<ScriptAction> _recordedActions = [];
   final _actionStreamController = StreamController<ScriptAction>.broadcast();
   final _statusStreamController = StreamController<String>.broadcast();
+  final _eventStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
   bool _isServiceEnabled = false;
+  StreamSubscription? _eventSubscription;
+  String _lastPackageName = '';
 
   Stream<ScriptAction> get actionStream => _actionStreamController.stream;
   Stream<String> get statusStream => _statusStreamController.stream;
+  Stream<Map<String, dynamic>> get eventStream => _eventStreamController.stream;
   bool get isRecording => _isRecording;
   bool get isExecuting => _isExecuting;
+  bool get isAutoRecordMode => _autoRecordMode;
   bool get isServiceEnabled => _isServiceEnabled;
   List<ScriptAction> get recordedActions => List.unmodifiable(_recordedActions);
+
+  void _setupEventListener() {
+    _eventSubscription =
+        AccessibilityPlatformService.eventStream.listen((event) {
+      try {
+        _eventStreamController.add(event);
+
+        // 处理自动录制
+        if (_autoRecordMode) {
+          _processAccessibilityEvent(event);
+        }
+
+        // 录制模式下也处理 Accessibility 事件（用于跨 app 录制）
+        if (_isRecording && !_autoRecordMode) {
+          _processAccessibilityEvent(event);
+        }
+
+        // 记录当前包名
+        final packageName = event['packageName'] as String? ?? '';
+        if (packageName != _lastPackageName && packageName.isNotEmpty) {
+          debugPrint('切换到应用: $packageName');
+          _lastPackageName = packageName;
+        }
+      } catch (e) {
+        debugPrint('处理无障碍事件失败: $e');
+      }
+    });
+  }
+
+  void _processAccessibilityEvent(Map<String, dynamic> event) {
+    if (!_isRecording) return;
+
+    final eventType = (event['eventType'] as String? ?? '').toLowerCase();
+    final bounds = event['bounds'] as Map?;
+    final packageName = event['packageName'] as String? ?? '';
+
+    debugPrint(
+        '处理事件: type=$eventType, package=$packageName, hasBounds=${bounds != null}');
+
+    // 计算坐标
+    double x = 0, y = 0;
+    bool hasCoordinates = false;
+
+    if (bounds != null) {
+      final left = bounds['left'] as int? ?? 0;
+      final top = bounds['top'] as int? ?? 0;
+      final right = bounds['right'] as int? ?? 0;
+      final bottom = bounds['bottom'] as int? ?? 0;
+      if (left > 0 || top > 0 || right > 0 || bottom > 0) {
+        x = (left + right) / 2;
+        y = (top + bottom) / 2;
+        hasCoordinates = true;
+        debugPrint('使用bounds坐标: ($x, $y)');
+      }
+    }
+
+    // 如果没有 bounds 坐标，记录事件但不录制动作
+    if (!hasCoordinates) {
+      debugPrint('警告: 事件没有坐标信息 package=$packageName type=$eventType');
+      // 对于没有坐标的点击事件，记录为占位符，提示用户需要手动指定位置
+      return;
+    }
+
+    switch (eventType) {
+      case 'click':
+        debugPrint('录制点击: ($x, $y)');
+        recordTap(x, y);
+        break;
+      case 'longclick':
+        debugPrint('录制长按: ($x, $y)');
+        recordLongPress(x, y);
+        break;
+      case 'scrolled':
+        final scrollY = event['scrollY'] as double?;
+        if (scrollY != null) {
+          final swipeAction = ScriptAction(
+            type: ActionType.swipe,
+            x: x,
+            y: y,
+            endX: x,
+            endY: y - scrollY,
+          );
+          _recordedActions.add(swipeAction);
+          _actionStreamController.add(swipeAction);
+        }
+        break;
+    }
+  }
 
   Future<void> checkServiceStatus() async {
     _isServiceEnabled = await AccessibilityPlatformService.isServiceEnabled();
@@ -32,6 +129,20 @@ class AccessibilityService {
 
   Future<void> openAccessibilitySettings() async {
     await AccessibilityPlatformService.openAccessibilitySettings();
+  }
+
+  void enableAutoRecordMode() {
+    _autoRecordMode = true;
+    _isRecording = true;
+    _recordedActions.clear();
+    _statusStreamController.add('auto_recording');
+    debugPrint('自动录制模式已开启');
+  }
+
+  void disableAutoRecordMode() {
+    _autoRecordMode = false;
+    _statusStreamController.add('idle');
+    debugPrint('自动录制模式已关闭');
   }
 
   void startRecording() {
@@ -44,7 +155,7 @@ class AccessibilityService {
   void stopRecording() {
     _isRecording = false;
     _statusStreamController.add('idle');
-    debugPrint('停止录制');
+    debugPrint('停止录制，共录制 ${_recordedActions.length} 个动作');
   }
 
   void recordTap(double x, double y) {

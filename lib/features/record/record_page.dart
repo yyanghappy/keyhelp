@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:keyhelp/core/services/accessibility_service.dart';
 import 'package:keyhelp/core/services/script_recorder.dart';
 import 'package:keyhelp/core/repositories/script_repository.dart';
 import 'package:keyhelp/shared/widgets/touch_recorder.dart';
@@ -25,17 +26,64 @@ class _RecordPageState extends ConsumerState<RecordPage> {
   String _duration = '00:00:00';
   DateTime? _startTime;
   Timer? _timer;
+  StreamSubscription? _eventSubscription;
+  final AccessibilityService _accessibilityService = AccessibilityService();
 
   @override
   void initState() {
     super.initState();
     _nameController.text = '脚本_${DateTime.now().millisecondsSinceEpoch}';
+    _setupAccessibilityListener();
+  }
+
+  void _setupAccessibilityListener() {
+    _eventSubscription = _accessibilityService.eventStream.listen((event) {
+      if (!_isRecording) return;
+
+      final eventType = (event['eventType'] as String? ?? '').toLowerCase();
+      final bounds = event['bounds'] as Map?;
+      final packageName = event['packageName'] as String? ?? '';
+
+      if (eventType != 'click') return;
+      if (packageName == 'com.keyhelp.app')
+        return; // TouchRecorder 会处理当前 app 的事件
+
+      if (bounds != null) {
+        final left = bounds['left'] as int? ?? 0;
+        final top = bounds['top'] as int? ?? 0;
+        final right = bounds['right'] as int? ?? 0;
+        final bottom = bounds['bottom'] as int? ?? 0;
+
+        if (left > 0 || top > 0 || right > 0 || bottom > 0) {
+          // 计算中心坐标
+          final centerX = (left + right) / 2;
+          final centerY = (top + bottom) / 2;
+
+          // 使用固定屏幕尺寸进行归一化（避免后台获取不准）
+          // 1080x2400 是常见的屏幕分辨率
+          const screenWidth = 1080.0;
+          const screenHeight = 2400.0;
+
+          // 归一化并限制在 0-1 范围内
+          final normalizedX = (centerX / screenWidth).clamp(0.0, 1.0);
+          final normalizedY = (centerY / screenHeight).clamp(0.0, 1.0);
+
+          final recorder = ref.read(recorderProvider);
+          recorder.recordTap(normalizedX, normalizedY, DateTime.now());
+
+          setState(() {
+            _actionCount++;
+          });
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _timer?.cancel();
+    _eventSubscription?.cancel();
     super.dispose();
   }
 
@@ -121,6 +169,12 @@ class _RecordPageState extends ConsumerState<RecordPage> {
 
   void _showPreview() {
     final recorder = ref.read(recorderProvider);
+    debugPrint('预览: recorder.actions.length = ${recorder.actions.length}');
+    for (var i = 0; i < recorder.actions.length; i++) {
+      final action = recorder.actions[i];
+      debugPrint(
+          '预览: action[$i] type=${action.type}, x=${action.x}, y=${action.y}');
+    }
     if (recorder.actions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('暂无录制内容')),

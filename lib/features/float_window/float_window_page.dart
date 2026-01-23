@@ -5,9 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keyhelp/core/models/script.dart';
 import 'package:keyhelp/core/models/execution_state.dart';
 import 'package:keyhelp/core/services/script_executor.dart';
+import 'package:keyhelp/core/services/game_recorder_service.dart';
 import 'package:keyhelp/shared/services/float_window_service.dart';
-import 'package:keyhelp/core/services/script_executor.dart';
-import 'package:keyhelp/core/models/script.dart';
 import 'package:keyhelp/core/repositories/script_repository.dart';
 
 class FloatWindowPage extends ConsumerStatefulWidget {
@@ -27,9 +26,29 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   Script? _currentScript;
   StreamSubscription<bool>? _windowStateSubscription;
   StreamSubscription<void>? _scriptListSubscription;
+  StreamSubscription<void>? _recordSubscription;
+  StreamSubscription<void>? _saveSubscription;
   StreamSubscription<void>? _playSubscription;
   StreamSubscription<void>? _pauseSubscription;
   StreamSubscription<void>? _stopSubscription;
+  StreamSubscription<ExecutionState>? _executorStateSubscription;
+
+  // 添加 GameRecorderService 实例
+  final GameRecorderService _recorder = GameRecorderService();
+
+  @override
+  void dispose() {
+    _windowStateSubscription?.cancel();
+    _scriptListSubscription?.cancel();
+    _recordSubscription?.cancel();
+    _saveSubscription?.cancel();
+    _playSubscription?.cancel();
+    _pauseSubscription?.cancel();
+    _stopSubscription?.cancel();
+    _executorStateSubscription?.cancel();
+    _recorder.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -52,6 +71,14 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
       if (mounted) {
         _showScriptSelectionDialog();
       }
+    });
+
+    _recordSubscription = FloatWindowService.recordStream.listen((_) {
+      _handleRecord();
+    });
+
+    _saveSubscription = FloatWindowService.saveStream.listen((_) {
+      _handleSave();
     });
 
     _playSubscription = FloatWindowService.playStream.listen((_) {
@@ -335,6 +362,9 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
 
   Future<void> _executeScript(Script script) async {
     try {
+      // 取消之前可能的订阅
+      _executorStateSubscription?.cancel();
+
       setState(() {
         _isExecuting = true;
         _currentScript = script;
@@ -356,7 +386,7 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
       );
 
       // 订阅执行状态变化，及时更新浮窗显示
-      _executor!.stateStream.listen((state) {
+      _executorStateSubscription = _executor!.stateStream.listen((state) {
         switch (state.status) {
           case ExecutionStatus.running:
             FloatWindowService.updateExecutionState(
@@ -418,6 +448,96 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
         );
       }
     }
+  }
+
+  void _handleRecord() {
+    debugPrint('=== 处理录制按钮点击 ===');
+    debugPrint('当前录制状态: ${_recorder.isRecording}');
+
+    if (_recorder.isRecording) {
+      debugPrint('执行停止录制逻辑 - 当前已有录制进行中');
+      _recorder.stopRecording();
+      debugPrint('停止录制完成');
+      // 更新浮窗状态为"录制完成"
+      FloatWindowService.updateRecordingState(
+        state: '录制完成',
+        isRecording: false,
+      );
+    } else {
+      debugPrint('执行开始录制逻辑 - 当前无录制进行');
+      _recorder.startRecording();
+      debugPrint('开始录制完成');
+      // 更新浮窗状态为"录制中"
+      FloatWindowService.updateRecordingState(
+        state: '录制中',
+        isRecording: true,
+      );
+    }
+    debugPrint('=== 录制按钮处理结束 ===');
+  }
+
+  void _handleSave() {
+    _showSaveDialog();
+  }
+
+  Future<void> _showSaveDialog() async {
+    if (_recorder.actionCount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('没有录制任何动作')),
+      );
+      return;
+    }
+
+    final nameController = TextEditingController(
+      text: '游戏脚本_${DateTime.now().millisecondsSinceEpoch}',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('保存脚本'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: '脚本名称',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('请输入脚本名称')),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              final script = await _recorder.saveScript(name);
+              if (script != null && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('脚本已保存: ${script.name}')),
+                );
+                // 保存后清空录制
+                _recorder.clearRecording();
+                // 更新浮窗状态
+                FloatWindowService.updateRecordingState(
+                  state: '未录制',
+                  isRecording: false,
+                );
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handlePlay() {

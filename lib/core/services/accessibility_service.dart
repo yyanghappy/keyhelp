@@ -280,7 +280,9 @@ class AccessibilityService {
   }
 
   void dispose() {
+    _eventSubscription?.cancel();
     _actionStreamController.close();
     _statusStreamController.close();
+    _eventStreamController.close();
   }
 }

@@ -77,6 +77,16 @@ class FloatWindowMethodChannel {
                 Log.d(TAG, "Execute script event: $scriptId")
                 eventSink?.success(mapOf("event" to "executeScript", "scriptId" to scriptId))
             }
+
+            override fun onRecord() {
+                Log.d(TAG, "Record event")
+                eventSink?.success(mapOf("event" to "record"))
+            }
+
+            override fun onSave() {
+                Log.d(TAG, "Save event")
+                eventSink?.success(mapOf("event" to "save"))
+            }
         })
     }
 
@@ -88,6 +98,7 @@ class FloatWindowMethodChannel {
             "hideFloatWindow" -> hideFloatWindow(result)
             "isFloating" -> isFloating(result)
             "updateExecutionState" -> updateExecutionState(call, result)
+            "updateRecordingState" -> updateRecordingState(call, result)
             "setCurrentScript" -> setCurrentScript(call, result)
             "updateScriptName" -> updateScriptName(call, result)
             else -> result.notImplemented()
@@ -212,6 +223,22 @@ class FloatWindowMethodChannel {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update script name", e)
             result.error("UPDATE_SCRIPT_NAME_FAILED", e.message, null)
+        }
+    }
+
+    private fun updateRecordingState(call: MethodCall, result: MethodChannel.Result) {
+        try {
+            val state = call.argument<String>("state") ?: "未录制"
+            val isRecording = call.argument<Boolean>("isRecording") ?: false
+
+            // 更新浮窗 UI
+            FloatWindowService.updateRecordingState(state, isRecording)
+
+            result.success(true)
+            Log.d(TAG, "Recording state updated: $state, recording: $isRecording")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update recording state", e)
+            result.error("UPDATE_RECORDING_STATE_FAILED", e.message, null)
         }
     }
 }

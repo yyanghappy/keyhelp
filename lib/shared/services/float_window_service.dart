@@ -14,6 +14,8 @@ class FloatWindowService {
   static StreamSubscription? _eventSubscription;
   static final _windowStateController = StreamController<bool>.broadcast();
   static final _scriptListController = StreamController<void>.broadcast();
+  static final _recordController = StreamController<void>.broadcast();
+  static final _saveController = StreamController<void>.broadcast();
   static final _playController = StreamController<void>.broadcast();
   static final _pauseController = StreamController<void>.broadcast();
   static final _stopController = StreamController<void>.broadcast();
@@ -21,6 +23,8 @@ class FloatWindowService {
 
   static Stream<bool> get windowStateStream => _windowStateController.stream;
   static Stream<void> get scriptListStream => _scriptListController.stream;
+  static Stream<void> get recordStream => _recordController.stream;
+  static Stream<void> get saveStream => _saveController.stream;
   static Stream<void> get playStream => _playController.stream;
   static Stream<void> get pauseStream => _pauseController.stream;
   static Stream<void> get stopStream => _stopController.stream;
@@ -50,6 +54,12 @@ class FloatWindowService {
               break;
             case 'showScriptList':
               _scriptListController.add(null);
+              break;
+            case 'record':
+              _recordController.add(null);
+              break;
+            case 'save':
+              _saveController.add(null);
               break;
             case 'play':
               _playController.add(null);
@@ -170,10 +180,26 @@ class FloatWindowService {
     }
   }
 
+  static Future<void> updateRecordingState({
+    required String state,
+    required bool isRecording,
+  }) async {
+    try {
+      await _channel.invokeMethod('updateRecordingState', {
+        'state': state,
+        'isRecording': isRecording,
+      });
+    } catch (e) {
+      print('更新录制状态失败: $e');
+    }
+  }
+
   static void dispose() {
     _eventSubscription?.cancel();
     _windowStateController.close();
     _scriptListController.close();
+    _recordController.close();
+    _saveController.close();
     _playController.close();
     _pauseController.close();
     _stopController.close();

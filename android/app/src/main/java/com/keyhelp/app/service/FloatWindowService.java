@@ -34,6 +34,8 @@ public class FloatWindowService extends Service {
     private LinearLayout scriptInfoContainer;
     private TextView statusText;
     private TextView scriptNameText;
+    private ImageView recordBtn;
+    private ImageView saveBtn;
     private ImageView playBtn;
     private ImageView pauseBtn;
     private ImageView stopBtn;
@@ -56,6 +58,8 @@ public class FloatWindowService extends Service {
     public interface OnFloatWindowListener {
         void onClose();
         void onShowScriptList();
+        void onRecord();
+        void onSave();
         void onPlay();
         void onPause();
         void onStop();
@@ -127,6 +131,8 @@ public class FloatWindowService extends Service {
             scriptInfoContainer = (LinearLayout) floatLayout.findViewById(R.id.scriptInfoContainer);
             statusText = (TextView) floatLayout.findViewById(R.id.statusText);
             scriptNameText = (TextView) floatLayout.findViewById(R.id.scriptNameText);
+            recordBtn = (ImageView) floatLayout.findViewById(R.id.recordBtn);
+            saveBtn = (ImageView) floatLayout.findViewById(R.id.saveBtn);
             playBtn = (ImageView) floatLayout.findViewById(R.id.playBtn);
             pauseBtn = (ImageView) floatLayout.findViewById(R.id.pauseBtn);
             stopBtn = (ImageView) floatLayout.findViewById(R.id.stopBtn);
@@ -173,7 +179,7 @@ public class FloatWindowService extends Service {
                 }
             }
         });
-        
+
         closeBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -193,7 +199,7 @@ public class FloatWindowService extends Service {
                 }
             }
         });
-        
+
         minimizeBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -211,8 +217,44 @@ public class FloatWindowService extends Service {
                 }
             }
         });
-        
+
         scriptInfoContainer.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
+            }
+        });
+
+        recordBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG, "Record button clicked");
+                if (listener != null) {
+                    listener.onRecord();
+                }
+            }
+        });
+
+        recordBtn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                v.onTouchEvent(event);
+                return false;
+            }
+        });
+
+        saveBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG, "Save button clicked");
+                if (listener != null) {
+                    listener.onSave();
+                }
+            }
+        });
+
+        saveBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 v.onTouchEvent(event);
@@ -229,7 +271,7 @@ public class FloatWindowService extends Service {
                 }
             }
         });
-        
+
         playBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -247,7 +289,7 @@ public class FloatWindowService extends Service {
                 }
             }
         });
-        
+
         pauseBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -265,7 +307,7 @@ public class FloatWindowService extends Service {
                 }
             }
         });
-        
+
         stopBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -365,6 +407,8 @@ public class FloatWindowService extends Service {
         savePosition(params.x, params.y);
 
         scriptInfoContainer.setVisibility(View.GONE);
+        recordBtn.setVisibility(View.GONE);
+        saveBtn.setVisibility(View.GONE);
         playBtn.setVisibility(View.GONE);
         pauseBtn.setVisibility(View.GONE);
         stopBtn.setVisibility(View.GONE);
@@ -383,6 +427,10 @@ public class FloatWindowService extends Service {
         }
 
         scriptInfoContainer.setVisibility(View.VISIBLE);
+
+        // 显示录制按钮
+        recordBtn.setVisibility(View.VISIBLE);
+        saveBtn.setVisibility(View.VISIBLE);
 
         if (currentScriptId != null) {
             boolean isPlaying = false;
@@ -430,9 +478,17 @@ public class FloatWindowService extends Service {
 
     public static void updateExecutionState(String state, boolean isPlaying, boolean isPaused) {
         Log.d(TAG, "updateExecutionState: state=" + state + ", isPlaying=" + isPlaying + ", isPaused=" + isPaused + ", currentScriptId=" + currentScriptId);
-        
+
         if (instance != null && instance.floatLayout != null && instance.floatLayout.isAttachedToWindow()) {
             instance.updateExecutionStateImpl(state, isPlaying, isPaused);
+        }
+    }
+
+    public static void updateRecordingState(String state, boolean isRecording) {
+        Log.d(TAG, "updateRecordingState: state=" + state + ", isRecording=" + isRecording);
+
+        if (instance != null && instance.floatLayout != null && instance.floatLayout.isAttachedToWindow()) {
+            instance.updateRecordingStateImpl(state, isRecording);
         }
     }
     
@@ -466,6 +522,24 @@ public class FloatWindowService extends Service {
         }
         if (stopBtn != null) {
             stopBtn.setVisibility(isPlaying ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void updateRecordingStateImpl(String state, boolean isRecording) {
+        if (statusText != null) {
+            statusText.setText(state);
+        }
+
+        if (recordBtn != null) {
+            // 录制按钮在录制时显示停止图标，未录制时显示录制图标
+            recordBtn.setImageResource(isRecording ?
+                android.R.drawable.ic_media_pause :
+                android.R.drawable.ic_btn_speak_now);
+        }
+
+        if (saveBtn != null) {
+            // 保存按钮只在录制完成后显示
+            saveBtn.setVisibility(isRecording ? View.GONE : View.VISIBLE);
         }
     }
 

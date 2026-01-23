@@ -180,14 +180,6 @@ public class FloatWindowService extends Service {
             }
         });
 
-        closeBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
-            }
-        });
-
         minimizeBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -197,14 +189,6 @@ public class FloatWindowService extends Service {
                 } else {
                     minimizeWindow();
                 }
-            }
-        });
-
-        minimizeBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
             }
         });
 
@@ -218,14 +202,6 @@ public class FloatWindowService extends Service {
             }
         });
 
-        scriptInfoContainer.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
-            }
-        });
-
         recordBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -233,14 +209,6 @@ public class FloatWindowService extends Service {
                 if (listener != null) {
                     listener.onRecord();
                 }
-            }
-        });
-
-        recordBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
             }
         });
 
@@ -254,14 +222,6 @@ public class FloatWindowService extends Service {
             }
         });
 
-        saveBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
-            }
-        });
-
         playBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -269,14 +229,6 @@ public class FloatWindowService extends Service {
                 if (listener != null) {
                     listener.onPlay();
                 }
-            }
-        });
-
-        playBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
             }
         });
 
@@ -290,14 +242,6 @@ public class FloatWindowService extends Service {
             }
         });
 
-        pauseBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
-            }
-        });
-
         stopBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -305,14 +249,6 @@ public class FloatWindowService extends Service {
                 if (listener != null) {
                     listener.onStop();
                 }
-            }
-        });
-
-        stopBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.onTouchEvent(event);
-                return false;
             }
         });
     }

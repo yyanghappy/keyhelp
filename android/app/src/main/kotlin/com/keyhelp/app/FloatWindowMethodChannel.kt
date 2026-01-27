@@ -14,6 +14,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodCall
 
 import com.keyhelp.app.service.FloatWindowService
+import com.keyhelp.app.service.GlobalScriptSelectorService
 import java.io.Serializable
 
 class FloatWindowMethodChannel {
@@ -101,6 +102,7 @@ class FloatWindowMethodChannel {
             "updateRecordingState" -> updateRecordingState(call, result)
             "setCurrentScript" -> setCurrentScript(call, result)
             "updateScriptName" -> updateScriptName(call, result)
+            "setScriptList" -> setScriptList(call, result)
             else -> result.notImplemented()
         }
     }
@@ -239,6 +241,33 @@ class FloatWindowMethodChannel {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update recording state", e)
             result.error("UPDATE_RECORDING_STATE_FAILED", e.message, null)
+        }
+    }
+
+    private fun setScriptList(call: MethodCall, result: MethodChannel.Result) {
+        try {
+            val scriptIds = call.argument<List<String>>("scriptIds")
+            val scriptNames = call.argument<List<String>>("scriptNames")
+            val actionCounts = call.argument<List<Int>>("actionCounts")
+
+            if (scriptIds != null && scriptNames != null && actionCounts != null) {
+                // 启动GlobalScriptSelectorService并传递脚本列表
+                val intent = Intent(context, GlobalScriptSelectorService::class.java)
+                intent.action = "SET_SCRIPT_LIST"
+                intent.putStringArrayListExtra("script_ids", ArrayList(scriptIds))
+                intent.putStringArrayListExtra("script_names", ArrayList(scriptNames))
+                intent.putIntegerArrayListExtra("action_counts", ArrayList(actionCounts))
+                context.startService(intent)
+
+                result.success(true)
+                Log.d(TAG, "Script list sent to GlobalScriptSelectorService, count: ${scriptIds.size}")
+            } else {
+                result.success(false)
+                Log.w(TAG, "Invalid script list data")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set script list", e)
+            result.error("SET_SCRIPT_LIST_FAILED", e.message, null)
         }
     }
 }

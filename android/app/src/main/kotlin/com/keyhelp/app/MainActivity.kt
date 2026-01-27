@@ -1,11 +1,13 @@
 package com.keyhelp.app
 
 import android.content.Intent
+import android.content.IntentFilter
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.keyhelp.app.service.KeyHelpAccessibilityService
 import com.keyhelp.app.service.FloatWindowService
+import com.keyhelp.app.receiver.ScriptSelectedReceiver
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -20,6 +22,7 @@ class MainActivity: FlutterActivity() {
     private var eventChannel: EventChannel? = null
     private var eventSink: EventChannel.EventSink? = null
     private var isRecording = false
+    private var scriptSelectedReceiver: ScriptSelectedReceiver? = null
 
     // Flutter engine 状态管理
     private var flutterEngine: FlutterEngine? = null
@@ -28,6 +31,63 @@ class MainActivity: FlutterActivity() {
     // 事件缓冲区 - 用于 Flutter detached 时缓存事件
     private val eventBuffer = ConcurrentLinkedQueue<Map<String, Any?>>()
     private var isFlushingBuffer = false
+
+    override fun onStart() {
+        super.onStart()
+        registerScriptSelectedReceiver()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterScriptSelectedReceiver()
+    }
+
+    private fun registerScriptSelectedReceiver() {
+        try {
+            scriptSelectedReceiver = ScriptSelectedReceiver()
+            ScriptSelectedReceiver.setListener(object : ScriptSelectedReceiver.ScriptSelectedListener {
+                override fun onScriptSelected(scriptId: String) {
+                    // 通过事件通道通知Flutter执行脚本
+                    sendScriptSelectedEvent(scriptId)
+                }
+            })
+
+            val intentFilter = IntentFilter("com.keyhelp.app.SCRIPT_SELECTED")
+            registerReceiver(scriptSelectedReceiver, intentFilter)
+            Log.d(TAG, "ScriptSelectedReceiver registered")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register ScriptSelectedReceiver", e)
+        }
+    }
+
+    private fun unregisterScriptSelectedReceiver() {
+        try {
+            if (scriptSelectedReceiver != null) {
+                unregisterReceiver(scriptSelectedReceiver)
+                scriptSelectedReceiver = null
+                Log.d(TAG, "ScriptSelectedReceiver unregistered")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to unregister ScriptSelectedReceiver", e)
+        }
+    }
+
+    private fun sendScriptSelectedEvent(scriptId: String) {
+        try {
+            if (isFlutterEngineAttached && eventSink != null) {
+                val eventMap = mapOf(
+                    "event" to "executeScript",
+                    "scriptId" to scriptId
+                )
+                eventSink?.success(eventMap)
+                Log.d(TAG, "Script selected event sent to Flutter: $scriptId")
+            } else {
+                Log.w(TAG, "Cannot send script selected event, Flutter not attached")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send script selected event", e)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

@@ -78,6 +78,14 @@ public class FloatWindowService extends Service {
         currentScriptName = scriptName;
     }
 
+    private void showGlobalScriptSelection() {
+        Log.d(TAG, "Showing global script selection");
+        // 直接启动全局脚本选择服务显示对话框
+        Intent intent = new Intent(this, GlobalScriptSelectorService.class);
+        intent.setAction("SHOW_SCRIPT_LIST");
+        startService(intent);
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -196,9 +204,8 @@ public class FloatWindowService extends Service {
             @Override
             public void onClick(View v) {
                 Log.d(TAG, "Script info container clicked");
-                if (listener != null) {
-                    listener.onShowScriptList();
-                }
+                // 直接显示全局脚本选择对话框
+                showGlobalScriptSelection();
             }
         });
 

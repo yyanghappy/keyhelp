@@ -196,6 +196,22 @@ class FloatWindowService {
     }
   }
 
+  static Future<void> setScriptList({
+    required List<String> scriptIds,
+    required List<String> scriptNames,
+    required List<int> actionCounts,
+  }) async {
+    try {
+      await _channel.invokeMethod('setScriptList', {
+        'scriptIds': scriptIds,
+        'scriptNames': scriptNames,
+        'actionCounts': actionCounts,
+      });
+    } catch (e) {
+      print('设置脚本列表失败: $e');
+    }
+  }
+
   static void dispose() {
     _eventSubscription?.cancel();
     _windowStateController.close();

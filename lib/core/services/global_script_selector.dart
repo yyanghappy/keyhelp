@@ -31,6 +31,9 @@ class GlobalScriptSelector {
       // 加载脚本列表
       await _loadScripts();
 
+      // 将脚本列表发送到Android原生层
+      await _sendScriptListToNative();
+
       // 显示脚本选择对话框
       _showScriptSelectionDialog();
     } catch (e) {
@@ -45,6 +48,25 @@ class GlobalScriptSelector {
     } catch (e) {
       print('加载脚本列表失败: $e');
       _scripts = [];
+    }
+  }
+
+  /// 将脚本列表发送到Android原生层
+  Future<void> _sendScriptListToNative() async {
+    try {
+      final scriptIds = _scripts.map((script) => script.id).toList();
+      final scriptNames = _scripts.map((script) => script.name).toList();
+      final actionCounts = _scripts.map((script) => script.actions.length).toList();
+
+      await FloatWindowService.setScriptList(
+        scriptIds: scriptIds,
+        scriptNames: scriptNames,
+        actionCounts: actionCounts,
+      );
+
+      print('脚本列表已发送到原生层，数量: ${_scripts.length}');
+    } catch (e) {
+      print('发送脚本列表到原生层失败: $e');
     }
   }
 

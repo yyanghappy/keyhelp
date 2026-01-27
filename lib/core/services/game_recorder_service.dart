@@ -146,7 +146,8 @@ class GameRecorderService {
   /// 清空录制
   void clearRecording() {
     _recordedActions.clear();
-    _actionCountController.add(0);
+    _ensureStreamControllers();
+    _actionCountController?.add(0);
     debugPrint('清空录制');
   }
 

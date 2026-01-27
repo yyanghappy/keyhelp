@@ -67,8 +67,8 @@ class GameRecorderService {
     _isRecording = true;
 
     // 通知状态变化
-    _recordingStateController!.add(true);
-    _actionCountController!.add(0);
+    _recordingStateController?.add(true);
+    _actionCountController?.add(0);
 
     // 开始监听无障碍事件
     _setupEventListeners();
@@ -113,7 +113,7 @@ class GameRecorderService {
 
     // 通知状态变化
     _ensureStreamControllers();
-    _recordingStateController!.add(false);
+    _recordingStateController?.add(false);
 
     debugPrint('游戏内录制已停止，共录制 ${_recordedActions.length} 个动作');
     debugPrint('=== 停止录制完成 ===');
@@ -330,7 +330,7 @@ class GameRecorderService {
     _lastActionTime = now;
 
     // 通知动作计数变化
-    _actionCountController!.add(_recordedActions.length);
+    _actionCountController?.add(_recordedActions.length);
 
     debugPrint('录制动作: ${action.type}, 延迟: ${delay}ms, 坐标: (${action.x}, ${action.y})');
   }

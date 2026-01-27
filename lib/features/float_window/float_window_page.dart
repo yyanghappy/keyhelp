@@ -477,11 +477,19 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   }
 
   void _handleSave() {
+    debugPrint('=== 开始处理保存按钮点击 ===');
     _showSaveDialog();
+    debugPrint('=== 保存按钮处理完成 ===');
   }
 
   Future<void> _showSaveDialog() async {
+    debugPrint('=== 准备显示保存对话框 ===');
+    debugPrint('当前动作计数: ${_recorder.actionCount}');
+    debugPrint('当前mounted状态: $mounted');
+    debugPrint('当前context状态: ${context.hashCode}');
+
     if (_recorder.actionCount == 0) {
+      debugPrint('没有录制任何动作，显示提示');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('没有录制任何动作')),
@@ -494,8 +502,12 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
       text: '游戏脚本_${DateTime.now().millisecondsSinceEpoch}',
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      debugPrint('页面未挂载，无法显示对话框');
+      return;
+    }
 
+    debugPrint('显示保存对话框');
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -514,8 +526,11 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
           ),
           ElevatedButton(
             onPressed: () async {
+              debugPrint('=== 保存按钮被点击 ===');
               final name = nameController.text.trim();
+              debugPrint('输入的脚本名称: $name');
               if (name.isEmpty) {
+                debugPrint('脚本名称为空');
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('请输入脚本名称')),
@@ -527,7 +542,9 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
               if (mounted) {
                 Navigator.pop(context);
               }
+              debugPrint('开始保存脚本');
               final script = await _recorder.saveScript(name);
+              debugPrint('脚本保存结果: ${script != null}');
               if (script != null && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('脚本已保存: ${script.name}')),

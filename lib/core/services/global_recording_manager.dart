@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:keyhelp/core/services/game_recorder_service.dart';
 import 'package:keyhelp/shared/services/float_window_service.dart';
 import 'package:keyhelp/core/models/script.dart';
+import 'package:keyhelp/core/repositories/script_repository.dart';
 
 /// 全局录制管理器
 /// 用于处理来自浮窗的录制相关事件，无论FloatWindowPage是否在前台
@@ -29,14 +30,35 @@ class GlobalRecordingManager {
 
     if (_recorder.actionCount == 0) {
       print('没有录制任何动作');
-      // 显示提示信息（通过通知或其他方式）
+      // 通过浮窗状态更新来提示用户
+      FloatWindowService.updateRecordingState(
+        state: '无动作',
+        isRecording: false,
+      );
       return;
     }
 
-    // 这里我们需要一个上下文来显示对话框
-    // 由于这是全局服务，我们无法直接显示对话框
-    // 可以考虑使用其他方式，如通知或直接保存
-    print('需要上下文来显示保存对话框');
+    // 自动生成脚本名称并直接保存
+    final scriptName = '脚本_${DateTime.now().millisecondsSinceEpoch}';
+    print('自动生成脚本名称: $scriptName');
+
+    final script = await _recorder.saveScript(scriptName);
+    if (script != null) {
+      print('脚本保存成功: ${script.name}');
+      // 保存后清空录制
+      _recorder.clearRecording();
+      // 更新浮窗状态
+      FloatWindowService.updateRecordingState(
+        state: '已保存',
+        isRecording: false,
+      );
+    } else {
+      print('脚本保存失败');
+      FloatWindowService.updateRecordingState(
+        state: '保存失败',
+        isRecording: false,
+      );
+    }
   }
 
   void dispose() {

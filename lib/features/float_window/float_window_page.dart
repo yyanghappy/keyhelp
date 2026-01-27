@@ -482,15 +482,19 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
 
   Future<void> _showSaveDialog() async {
     if (_recorder.actionCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('没有录制任何动作')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('没有录制任何动作')),
+        );
+      }
       return;
     }
 
     final nameController = TextEditingController(
       text: '游戏脚本_${DateTime.now().millisecondsSinceEpoch}',
     );
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -512,13 +516,17 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('请输入脚本名称')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('请输入脚本名称')),
+                  );
+                }
                 return;
               }
 
-              Navigator.pop(context);
+              if (mounted) {
+                Navigator.pop(context);
+              }
               final script = await _recorder.saveScript(name);
               if (script != null && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

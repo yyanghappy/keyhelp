@@ -6,6 +6,9 @@ import 'package:keyhelp/features/scripts/scripts_page.dart';
 import 'package:keyhelp/features/record/record_page.dart';
 import 'package:keyhelp/features/schedule/schedule_page.dart';
 import 'package:keyhelp/features/float_window/float_window_page.dart';
+import 'package:keyhelp/core/models/script.dart';
+import 'package:keyhelp/core/repositories/script_repository.dart';
+import 'package:keyhelp/shared/services/global_dialog_service.dart';
 
 final accessibilityServiceProvider =
     Provider<AccessibilityService>((ref) => AccessibilityService());
@@ -21,16 +24,21 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool _isChecking = true;
   bool _isServiceEnabled = false;
   Timer? _serviceCheckTimer;
+  List<Script> _scripts = [];
+  StreamSubscription? _notificationSubscription;
 
   @override
   void initState() {
     super.initState();
     _checkAccessibilityService();
+    _loadScripts();
+    _setupNotificationListener();
   }
 
   @override
   void dispose() {
     _serviceCheckTimer?.cancel();
+    _notificationSubscription?.cancel();
     super.dispose();
   }
 
@@ -41,6 +49,19 @@ class _HomePageState extends ConsumerState<HomePage> {
       _isChecking = false;
       _isServiceEnabled = service.isServiceEnabled;
     });
+  }
+
+  Future<void> _loadScripts() async {
+    try {
+      final scripts = await ScriptRepository.instance.getAllScripts();
+      if (mounted) {
+        setState(() {
+          _scripts = scripts;
+        });
+      }
+    } catch (e) {
+      print('加载脚本列表失败: $e');
+    }
   }
 
   Future<void> _startServiceCheckPolling() async {
@@ -79,6 +100,29 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     // 开始轮询检测服务状态
     await _startServiceCheckPolling();
+  }
+
+  void _setupNotificationListener() {
+    // TODO: 实现通知监听逻辑
+    // 这里可以监听来自全局脚本选择服务的通知
+  }
+
+  /// 显示脚本选择对话框
+  Future<void> _showScriptSelectionDialog() async {
+    await _loadScripts();
+
+    if (_scripts.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('暂无脚本，请先添加脚本')),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      await GlobalDialogService().showScriptSelectionDialog(_scripts, context);
+    }
   }
 
   @override

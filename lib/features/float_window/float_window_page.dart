@@ -8,6 +8,7 @@ import 'package:keyhelp/core/services/script_executor.dart';
 import 'package:keyhelp/core/services/game_recorder_service.dart';
 import 'package:keyhelp/shared/services/float_window_service.dart';
 import 'package:keyhelp/core/repositories/script_repository.dart';
+import 'package:keyhelp/shared/services/global_dialog_service.dart';
 
 class FloatWindowPage extends ConsumerStatefulWidget {
   const FloatWindowPage({super.key});
@@ -318,46 +319,8 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('选择脚本'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _scripts.length,
-            itemBuilder: (context, index) {
-              final script = _scripts[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.blue.shade100,
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                title: Text(script.name),
-                subtitle: Text('${script.actions.length} 个动作'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _executeScript(script);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-        ],
-      ),
-    );
+    // 使用全局对话框服务显示脚本选择对话框
+    GlobalDialogService().showScriptSelectionDialog(_scripts, context);
   }
 
   Future<void> _executeScript(Script script) async {

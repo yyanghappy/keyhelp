@@ -3,14 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-import 'app.dart';
+import 'app_with_notification_handler.dart';
 import 'core/models/script.dart';
 import 'core/models/action.dart';
 import 'core/models/scheduled_task.dart';
 import 'shared/services/float_window_service.dart';
 import 'core/services/global_recording_manager.dart';
+import 'core/services/global_script_selector.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = 
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 void main() async {
@@ -37,6 +38,7 @@ void main() async {
   // 初始化浮窗服务并启动全局录制管理器
   await FloatWindowService.initialize();
   GlobalRecordingManager();
+  GlobalScriptSelector();
 
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(const ProviderScope(child: MyAppWithNotificationHandler()));
 }

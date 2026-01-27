@@ -9,6 +9,7 @@ import 'package:keyhelp/features/float_window/float_window_page.dart';
 import 'package:keyhelp/core/models/script.dart';
 import 'package:keyhelp/core/repositories/script_repository.dart';
 import 'package:keyhelp/shared/services/global_dialog_service.dart';
+import 'package:keyhelp/shared/services/event_bus.dart';
 
 final accessibilityServiceProvider =
     Provider<AccessibilityService>((ref) => AccessibilityService());
@@ -25,20 +26,20 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool _isServiceEnabled = false;
   Timer? _serviceCheckTimer;
   List<Script> _scripts = [];
-  StreamSubscription? _notificationSubscription;
+  StreamSubscription? _scriptListSubscription;
 
   @override
   void initState() {
     super.initState();
     _checkAccessibilityService();
     _loadScripts();
-    _setupNotificationListener();
+    _setupEventListeners();
   }
 
   @override
   void dispose() {
     _serviceCheckTimer?.cancel();
-    _notificationSubscription?.cancel();
+    _scriptListSubscription?.cancel();
     super.dispose();
   }
 
@@ -102,9 +103,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     await _startServiceCheckPolling();
   }
 
-  void _setupNotificationListener() {
-    // TODO: 实现通知监听逻辑
-    // 这里可以监听来自全局脚本选择服务的通知
+  void _setupEventListeners() {
+    // 监听全局脚本列表事件
+    _scriptListSubscription = EventBus().scriptListStream.listen((_) {
+      _showScriptSelectionDialog();
+    });
   }
 
   /// 显示脚本选择对话框

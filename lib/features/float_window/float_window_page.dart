@@ -27,7 +27,7 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   StreamSubscription<bool>? _windowStateSubscription;
   StreamSubscription<void>? _scriptListSubscription;
   StreamSubscription<void>? _recordSubscription;
-  StreamSubscription<void>? _saveSubscription;
+  // StreamSubscription<void>? _saveSubscription; // 移到全局管理器中
   StreamSubscription<void>? _playSubscription;
   StreamSubscription<void>? _pauseSubscription;
   StreamSubscription<void>? _stopSubscription;
@@ -41,7 +41,7 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
     _windowStateSubscription?.cancel();
     _scriptListSubscription?.cancel();
     _recordSubscription?.cancel();
-    _saveSubscription?.cancel();
+    // _saveSubscription?.cancel(); // 移到全局管理器中
     _playSubscription?.cancel();
     _pauseSubscription?.cancel();
     _stopSubscription?.cancel();
@@ -77,9 +77,9 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
       _handleRecord();
     });
 
-    _saveSubscription = FloatWindowService.saveStream.listen((_) {
-      _handleSave();
-    });
+    // _saveSubscription = FloatWindowService.saveStream.listen((_) {  // 移到全局管理器中
+    //   _handleSave();
+    // });
 
     _playSubscription = FloatWindowService.playStream.listen((_) {
       _handlePlay();

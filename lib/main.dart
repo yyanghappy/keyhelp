@@ -7,6 +7,8 @@ import 'app.dart';
 import 'core/models/script.dart';
 import 'core/models/action.dart';
 import 'core/models/scheduled_task.dart';
+import 'shared/services/float_window_service.dart';
+import 'core/services/global_recording_manager.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = 
     FlutterLocalNotificationsPlugin();
@@ -31,6 +33,10 @@ void main() async {
   );
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  // 初始化浮窗服务并启动全局录制管理器
+  await FloatWindowService.initialize();
+  GlobalRecordingManager();
 
   runApp(const ProviderScope(child: MyApp()));
 }

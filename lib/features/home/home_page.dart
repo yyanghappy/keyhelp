@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keyhelp/core/services/accessibility_service.dart';
 import 'package:keyhelp/features/scripts/scripts_page.dart';
@@ -19,11 +20,18 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   bool _isChecking = true;
   bool _isServiceEnabled = false;
+  Timer? _serviceCheckTimer;
 
   @override
   void initState() {
     super.initState();
     _checkAccessibilityService();
+  }
+
+  @override
+  void dispose() {
+    _serviceCheckTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkAccessibilityService() async {
@@ -32,6 +40,29 @@ class _HomePageState extends ConsumerState<HomePage> {
     setState(() {
       _isChecking = false;
       _isServiceEnabled = service.isServiceEnabled;
+    });
+  }
+
+  Future<void> _startServiceCheckPolling() async {
+    _serviceCheckTimer?.cancel();
+    _serviceCheckTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      final service = ref.read(accessibilityServiceProvider);
+      await service.checkServiceStatus();
+      if (mounted) {
+        setState(() {
+          _isServiceEnabled = service.isServiceEnabled;
+        });
+        // 如果服务已启用，停止轮询
+        if (service.isServiceEnabled) {
+          timer.cancel();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('无障碍服务已启用！'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
     });
   }
 
@@ -46,9 +77,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
 
-    // 给用户更多时间去设置
-    await Future.delayed(const Duration(seconds: 3));
-    await _checkAccessibilityService();
+    // 开始轮询检测服务状态
+    await _startServiceCheckPolling();
   }
 
   @override

@@ -2,5 +2,4 @@
 <resources>
     <string name="app_name">KeyHelp</string>
     <string name="accessibility_service_description">KeyHelp自动化工具 - 用于录制和执行触控操作</string>
-    <string name="touch_service_description">KeyHelp触摸录制服务 - 用于录制其他应用的触摸操作</string>
 </resources>

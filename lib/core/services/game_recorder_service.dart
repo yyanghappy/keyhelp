@@ -9,7 +9,10 @@ import 'package:keyhelp/shared/utils/accessibility_platform_service.dart';
 class GameRecorderService {
   static final GameRecorderService _instance = GameRecorderService._internal();
   factory GameRecorderService() => _instance;
-  GameRecorderService._internal();
+  GameRecorderService._internal() {
+    // 确保StreamController初始化
+    _ensureStreamControllers();
+  }
 
   bool _isRecording = false;
   List<ScriptAction> _recordedActions = [];
@@ -17,18 +20,41 @@ class GameRecorderService {
   DateTime? _lastActionTime;
   StreamSubscription? _accessibilityEventSubscription;
   StreamSubscription? _platformEventSubscription;
-  final _recordingStateController = StreamController<bool>.broadcast();
-  final _actionCountController = StreamController<int>.broadcast();
+  StreamController<bool>? _recordingStateController;
+  StreamController<int>? _actionCountController;
+
+  // 确保StreamController已初始化
+  void _ensureStreamControllers() {
+    _recordingStateController ??= StreamController<bool>.broadcast();
+    _actionCountController ??= StreamController<int>.broadcast();
+  }
+
+  // 重新初始化StreamController（用于dispose后的重新使用）
+  void _reinitializeStreamControllers() {
+    _recordingStateController?.close();
+    _actionCountController?.close();
+    _recordingStateController = StreamController<bool>.broadcast();
+    _actionCountController = StreamController<int>.broadcast();
+  }
 
   bool get isRecording => _isRecording;
   int get actionCount => _recordedActions.length;
-  Stream<bool> get recordingStateStream => _recordingStateController.stream;
-  Stream<int> get actionCountStream => _actionCountController.stream;
+  Stream<bool> get recordingStateStream {
+    _ensureStreamControllers();
+    return _recordingStateController!.stream;
+  }
+  Stream<int> get actionCountStream {
+    _ensureStreamControllers();
+    return _actionCountController!.stream;
+  }
 
   /// 开始录制
   Future<void> startRecording() async {
     debugPrint('=== 准备开始录制 ===');
     debugPrint('当前状态: $_isRecording');
+
+    // 确保StreamController已初始化
+    _ensureStreamControllers();
 
     if (_isRecording) {
       debugPrint('录制已开始，无需重复开始');
@@ -41,8 +67,8 @@ class GameRecorderService {
     _isRecording = true;
 
     // 通知状态变化
-    _recordingStateController.add(true);
-    _actionCountController.add(0);
+    _recordingStateController!.add(true);
+    _actionCountController!.add(0);
 
     // 开始监听无障碍事件
     _setupEventListeners();
@@ -86,7 +112,8 @@ class GameRecorderService {
     }
 
     // 通知状态变化
-    _recordingStateController.add(false);
+    _ensureStreamControllers();
+    _recordingStateController!.add(false);
 
     debugPrint('游戏内录制已停止，共录制 ${_recordedActions.length} 个动作');
     debugPrint('=== 停止录制完成 ===');
@@ -290,6 +317,9 @@ class GameRecorderService {
   void _recordActionWithDelay(ScriptAction action) {
     if (!_isRecording) return;
 
+    // 确保StreamController已初始化
+    _ensureStreamControllers();
+
     final now = DateTime.now();
     final delay = _lastActionTime != null
         ? now.difference(_lastActionTime!).inMilliseconds
@@ -300,7 +330,7 @@ class GameRecorderService {
     _lastActionTime = now;
 
     // 通知动作计数变化
-    _actionCountController.add(_recordedActions.length);
+    _actionCountController!.add(_recordedActions.length);
 
     debugPrint('录制动作: ${action.type}, 延迟: ${delay}ms, 坐标: (${action.x}, ${action.y})');
   }
@@ -309,7 +339,9 @@ class GameRecorderService {
   void dispose() {
     _accessibilityEventSubscription?.cancel();
     _platformEventSubscription?.cancel();
-    _recordingStateController.close();
-    _actionCountController.close();
+    _recordingStateController?.close();
+    _actionCountController?.close();
+    _recordingStateController = null;
+    _actionCountController = null;
   }
 }

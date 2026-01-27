@@ -59,7 +59,9 @@ class FloatWindowService {
               _recordController.add(null);
               break;
             case 'save':
+              print('=== 接收到保存事件 ===');
               _saveController.add(null);
+              print('=== 保存事件已转发 ===');
               break;
             case 'play':
               _playController.add(null);

@@ -41,12 +41,13 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('请在设置中启用KeyHelp无障碍服务'),
-        duration: Duration(seconds: 2),
+        content: Text('请在设置中找到并启用"KeyHelp自动化工具"服务'),
+        duration: Duration(seconds: 3),
       ),
     );
 
-    await Future.delayed(const Duration(seconds: 2));
+    // 给用户更多时间去设置
+    await Future.delayed(const Duration(seconds: 3));
     await _checkAccessibilityService();
   }
 
@@ -92,7 +93,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               ),
                               const SizedBox(height: 4),
                               const Text(
-                                '请启用无障碍服务以使用触控模拟功能',
+                                '请启用"KeyHelp自动化工具"服务以使用触控模拟功能',
                                 style: TextStyle(fontSize: 12),
                               ),
                             ],
@@ -196,8 +197,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       builder: (context) => AlertDialog(
         title: const Text('需要启用无障碍服务'),
         content: const Text(
-          '脚本录制和触控模拟功能需要启用无障碍服务。\n\n'
-          '请点击右上角的图标或上方的"去设置"按钮进行配置。',
+          '脚本录制和触控模拟功能需要启用"KeyHelp自动化工具"服务。\n\n'
+          '请点击右上角的图标或上方的"去设置"按钮，在无障碍设置中找到并启用该服务。',
         ),
         actions: [
           TextButton(

@@ -340,9 +340,7 @@ class GameRecorderService {
   void dispose() {
     _accessibilityEventSubscription?.cancel();
     _platformEventSubscription?.cancel();
-    _recordingStateController?.close();
-    _actionCountController?.close();
-    _recordingStateController = null;
-    _actionCountController = null;
+    // 不关闭StreamController，因为它们需要在整个应用生命周期中保持活跃
+    // 只是取消订阅，不清空控制器
   }
 }

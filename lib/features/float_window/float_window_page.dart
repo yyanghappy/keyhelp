@@ -26,7 +26,7 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   Script? _currentScript;
   StreamSubscription<bool>? _windowStateSubscription;
   StreamSubscription<void>? _scriptListSubscription;
-  StreamSubscription<void>? _recordSubscription;
+  // StreamSubscription<void>? _recordSubscription; // 移到全局管理器中
   // StreamSubscription<void>? _saveSubscription; // 移到全局管理器中
   StreamSubscription<void>? _playSubscription;
   StreamSubscription<void>? _pauseSubscription;
@@ -40,7 +40,7 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   void dispose() {
     _windowStateSubscription?.cancel();
     _scriptListSubscription?.cancel();
-    _recordSubscription?.cancel();
+    // _recordSubscription?.cancel(); // 移到全局管理器中
     // _saveSubscription?.cancel(); // 移到全局管理器中
     _playSubscription?.cancel();
     _pauseSubscription?.cancel();
@@ -73,9 +73,9 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
       }
     });
 
-    _recordSubscription = FloatWindowService.recordStream.listen((_) {
-      _handleRecord();
-    });
+    // _recordSubscription = FloatWindowService.recordStream.listen((_) {  // 移到全局管理器中
+    //   _handleRecord();
+    // });
 
     // _saveSubscription = FloatWindowService.saveStream.listen((_) {  // 移到全局管理器中
     //   _handleSave();
@@ -451,29 +451,8 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
   }
 
   void _handleRecord() {
-    debugPrint('=== 处理录制按钮点击 ===');
-    debugPrint('当前录制状态: ${_recorder.isRecording}');
-
-    if (_recorder.isRecording) {
-      debugPrint('执行停止录制逻辑 - 当前已有录制进行中');
-      _recorder.stopRecording();
-      debugPrint('停止录制完成');
-      // 更新浮窗状态为"录制完成"
-      FloatWindowService.updateRecordingState(
-        state: '录制完成',
-        isRecording: false,
-      );
-    } else {
-      debugPrint('执行开始录制逻辑 - 当前无录制进行');
-      _recorder.startRecording();
-      debugPrint('开始录制完成');
-      // 更新浮窗状态为"录制中"
-      FloatWindowService.updateRecordingState(
-        state: '录制中',
-        isRecording: true,
-      );
-    }
-    debugPrint('=== 录制按钮处理结束 ===');
+    // 此方法已移到全局管理器中
+    print('=== FloatWindowPage中的_handleRecord已被移除 ===');
   }
 
   void _handleSave() {

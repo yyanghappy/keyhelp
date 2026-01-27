@@ -23,6 +23,35 @@ class GlobalRecordingManager {
       print('=== 全局录制管理器接收到保存事件 ===');
       _handleSave();
     });
+
+    // 监听录制事件
+    FloatWindowService.recordStream.listen((_) {
+      print('=== 全局录制管理器接收到录制事件 ===');
+      _handleRecord();
+    });
+  }
+
+  void _handleRecord() {
+    print('=== 全局录制管理器开始处理录制 ===');
+    print('当前录制状态: ${_recorder.isRecording}');
+
+    if (_recorder.isRecording) {
+      print('执行停止录制逻辑');
+      _recorder.stopRecording();
+      // 更新浮窗状态为"录制完成"
+      FloatWindowService.updateRecordingState(
+        state: '录制完成',
+        isRecording: false,
+      );
+    } else {
+      print('执行开始录制逻辑');
+      _recorder.startRecording();
+      // 更新浮窗状态为"录制中"
+      FloatWindowService.updateRecordingState(
+        state: '录制中',
+        isRecording: true,
+      );
+    }
   }
 
   Future<void> _handleSave() async {

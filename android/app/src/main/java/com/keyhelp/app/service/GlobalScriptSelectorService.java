@@ -1,6 +1,7 @@
 package com.keyhelp.app.service;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
 import android.util.Log;
@@ -129,8 +130,11 @@ public class GlobalScriptSelectorService extends Service {
         // 通过广播通知Flutter执行脚本
         Log.d(TAG, "Notifying script selected: " + scriptId);
         Intent broadcastIntent = new Intent("com.keyhelp.app.SCRIPT_SELECTED");
+        broadcastIntent.setPackage(getPackageName()); // 限制到当前应用
         broadcastIntent.putExtra("script_id", scriptId);
-        sendBroadcast(broadcastIntent);
+        // 使用ApplicationContext发送广播以确保能够被接收
+        getApplicationContext().sendBroadcast(broadcastIntent);
+        Log.d(TAG, "Broadcast sent for script: " + scriptId);
     }
 
     public static void setScriptList(List<ScriptInfo> scripts) {

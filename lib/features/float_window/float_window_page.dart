@@ -130,6 +130,28 @@ class _FloatWindowPageState extends ConsumerState<FloatWindowPage> {
         _scripts = scripts;
       });
     }
+
+    // 将脚本列表同步到原生层，供浮窗脚本列表按钮使用
+    await _syncScriptListToNative(scripts);
+  }
+
+  /// 将脚本列表同步到原生层
+  Future<void> _syncScriptListToNative(List<Script> scripts) async {
+    try {
+      final scriptIds = scripts.map((script) => script.id).toList();
+      final scriptNames = scripts.map((script) => script.name).toList();
+      final actionCounts = scripts.map((script) => script.actions.length).toList();
+
+      await FloatWindowService.setScriptList(
+        scriptIds: scriptIds,
+        scriptNames: scriptNames,
+        actionCounts: actionCounts,
+      );
+
+      print('脚本列表已同步到原生层，数量: ${scripts.length}');
+    } catch (e) {
+      print('同步脚本列表到原生层失败: $e');
+    }
   }
 
   Future<void> _requestPermission() async {

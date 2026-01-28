@@ -33,9 +33,6 @@ class GlobalScriptSelector {
 
       // 将脚本列表发送到Android原生层
       await _sendScriptListToNative();
-
-      // 显示脚本选择对话框
-      _showScriptSelectionDialog();
     } catch (e) {
       print('显示脚本列表失败: $e');
     }

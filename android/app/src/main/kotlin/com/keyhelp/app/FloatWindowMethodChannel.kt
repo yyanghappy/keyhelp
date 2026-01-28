@@ -1,7 +1,9 @@
 package com.keyhelp.app
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -25,6 +27,31 @@ class FloatWindowMethodChannel {
     private val eventChannel: EventChannel
     private val context: Context
     private var eventSink: EventChannel.EventSink? = null
+    private var scriptSelectedReceiver: ScriptSelectedReceiver? = null
+
+    companion object {
+        @Volatile
+        private var instance: FloatWindowMethodChannel? = null
+
+        fun getInstance(): FloatWindowMethodChannel? {
+            return instance
+        }
+
+        fun sendEvent(eventType: String, scriptId: String? = null) {
+            val instance = getInstance()
+            if (instance != null && instance.eventSink != null) {
+                val eventMap = if (scriptId != null) {
+                    mapOf("event" to eventType, "scriptId" to scriptId)
+                } else {
+                    mapOf("event" to eventType)
+                }
+                instance.eventSink?.success(eventMap)
+                Log.d(instance.TAG, "Event sent: $eventType, scriptId: $scriptId")
+            } else {
+                Log.w("FloatWindowMethodChannel", "Cannot send event, instance or eventSink is null")
+            }
+        }
+    }
 
     constructor(flutterEngine: FlutterEngine, appContext: Context) {
         this.context = appContext
@@ -36,15 +63,21 @@ class FloatWindowMethodChannel {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 eventSink = events
                 setupServiceListener()
+                registerScriptSelectedReceiver()
                 Log.d(TAG, "Event channel listening")
             }
 
             override fun onCancel(arguments: Any?) {
                 eventSink = null
                 FloatWindowService.setListener(null)
+                unregisterScriptSelectedReceiver()
                 Log.d(TAG, "Event channel cancelled")
             }
         })
+
+        // 设置单例实例
+        FloatWindowMethodChannel.instance = this
+        Log.d(TAG, "FloatWindowMethodChannel instance set")
     }
 
     private fun setupServiceListener() {
@@ -89,6 +122,45 @@ class FloatWindowMethodChannel {
                 eventSink?.success(mapOf("event" to "save"))
             }
         })
+    }
+
+    private inner class ScriptSelectedReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if ("com.keyhelp.app.FLOAT_WINDOW_SCRIPT_SELECTED" == intent.action) {
+                val scriptId = intent.getStringExtra("script_id")
+                if (scriptId != null) {
+                    Log.d(TAG, "Script selected via broadcast: $scriptId")
+                    eventSink?.success(mapOf("event" to "executeScript", "scriptId" to scriptId))
+                }
+            }
+        }
+    }
+
+    private fun registerScriptSelectedReceiver() {
+        try {
+            scriptSelectedReceiver = ScriptSelectedReceiver()
+            val intentFilter = IntentFilter("com.keyhelp.app.FLOAT_WINDOW_SCRIPT_SELECTED")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(scriptSelectedReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                context.registerReceiver(scriptSelectedReceiver, intentFilter)
+            }
+            Log.d(TAG, "ScriptSelectedReceiver registered for float window")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register ScriptSelectedReceiver for float window", e)
+        }
+    }
+
+    private fun unregisterScriptSelectedReceiver() {
+        try {
+            if (scriptSelectedReceiver != null) {
+                context.unregisterReceiver(scriptSelectedReceiver)
+                scriptSelectedReceiver = null
+                Log.d(TAG, "ScriptSelectedReceiver unregistered for float window")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to unregister ScriptSelectedReceiver for float window", e)
+        }
     }
 
     private fun onMethodCall(@NonNull call: MethodCall, @NonNull result: MethodChannel.Result) {

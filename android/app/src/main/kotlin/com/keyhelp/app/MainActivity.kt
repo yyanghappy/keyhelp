@@ -1,13 +1,16 @@
 package com.keyhelp.app
 
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.keyhelp.app.service.KeyHelpAccessibilityService
 import com.keyhelp.app.service.FloatWindowService
 import com.keyhelp.app.receiver.ScriptSelectedReceiver
+import com.keyhelp.app.FloatWindowMethodChannel
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -21,6 +24,7 @@ class MainActivity: FlutterActivity() {
     private var methodChannel: MethodChannel? = null
     private var eventChannel: EventChannel? = null
     private var eventSink: EventChannel.EventSink? = null
+    private var floatWindowMethodChannel: FloatWindowMethodChannel? = null
     private var isRecording = false
     private var scriptSelectedReceiver: ScriptSelectedReceiver? = null
 
@@ -53,7 +57,11 @@ class MainActivity: FlutterActivity() {
             })
 
             val intentFilter = IntentFilter("com.keyhelp.app.SCRIPT_SELECTED")
-            registerReceiver(scriptSelectedReceiver, intentFilter)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(scriptSelectedReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(scriptSelectedReceiver, intentFilter)
+            }
             Log.d(TAG, "ScriptSelectedReceiver registered")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to register ScriptSelectedReceiver", e)
@@ -73,20 +81,10 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun sendScriptSelectedEvent(scriptId: String) {
-        try {
-            if (isFlutterEngineAttached && eventSink != null) {
-                val eventMap = mapOf(
-                    "event" to "executeScript",
-                    "scriptId" to scriptId
-                )
-                eventSink?.success(eventMap)
-                Log.d(TAG, "Script selected event sent to Flutter: $scriptId")
-            } else {
-                Log.w(TAG, "Cannot send script selected event, Flutter not attached")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send script selected event", e)
-        }
+        Log.d(TAG, "sendScriptSelectedEvent called with scriptId: $scriptId")
+        // 通过浮窗事件通道发送脚本执行事件
+        FloatWindowMethodChannel.sendEvent("executeScript", scriptId)
+        Log.d(TAG, "Script selected event sent to Flutter via FloatWindowMethodChannel: $scriptId")
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -99,7 +97,7 @@ class MainActivity: FlutterActivity() {
         setupAccessibilityChannels()
         
         // 初始化悬浮窗 MethodChannel
-        FloatWindowMethodChannel(flutterEngine, applicationContext)
+        floatWindowMethodChannel = FloatWindowMethodChannel(flutterEngine, applicationContext)
     }
 
     private fun setupAccessibilityChannels() {

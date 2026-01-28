@@ -10,6 +10,7 @@ import 'core/models/scheduled_task.dart';
 import 'shared/services/float_window_service.dart';
 import 'core/services/global_recording_manager.dart';
 import 'core/services/global_script_selector.dart';
+import 'core/services/global_script_executor.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -35,10 +36,12 @@ void main() async {
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-  // 初始化浮窗服务并启动全局录制管理器
+  // 初始化浮窗服务并启动全局录制和脚本执行管理器
   await FloatWindowService.initialize();
   GlobalRecordingManager();
   GlobalScriptSelector();
+  GlobalScriptExecutor();
+  print('=== GlobalScriptExecutor initialized ===');
 
   runApp(const ProviderScope(child: MyAppWithNotificationHandler()));
 }
